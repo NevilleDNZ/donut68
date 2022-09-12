@@ -1,0 +1,264 @@
+#!/usr/bin/a68g --script #
+# -*- coding: utf-8 -*- #
+
+# list_ops REQUIRES: VALUEVAL #
+MODE WORD = STRING;
+MODE VALUEVAL = WORD;
+OP REPR = (WORD self)STRING: self;
+
+PR read "prelude/list_val_ops.a68" PR;
+
+# list_ops PROVIDES: NEWLISTVAL, NEWLINKVAL #
+
+MODE NEWLINKWORD = NEWLINKVAL;
+MODE LINKWORD = REF NEWLINKWORD;
+MODE NEWSENTENCE = NEWLISTVAL;
+MODE SENTENCE = REF NEWSENTENCE;
+
+MODE SUBSENT = SLICEVAL;
+
+INT out errno := 0;
+
+STRING test desc := "";
+
+PROC cut here = (STRING msg)VOID:  print(("--"*4,"8>< "+"- "*4," ",msg," "," -"*4, new line));
+PROC unit test = (STRING msg)STRING: ( print((new line,"    ===",msg, "===", new line)); test desc);
+PROC skip test = (STRING msg)STRING: test desc;
+PROC fail test = VOID: (
+    print(("FAILED:",test desc, new line));
+    out errno := -1
+    ; exit 
+);
+
+[6]STRING str  pangram0  := (      "Big","fjords","vex","quick","waltz","nymph");
+
+[6]STRING str  pangram   := (      "kkk","lll","mmm","nnn","ooo","ppp");
+[5]STRING str  pangram03 := (      "kkk","lll",      "nnn","ooo","ppp");
+[4]STRING str  pangram034:= (      "kkk","lll",              "ooo","ppp");
+[3]STRING str  pangram035:= (      "kkk","lll",                      "ppp");
+[5]STRING str  pangra    := (      "kkk","lll","mmm","nnn","ooo");
+[5]STRING str   angram   := (            "lll","mmm","nnn","ooo","ppp");
+[7]STRING str  pangramu  := (      "kkk","lll","mmm","nnn","ooo","ppp","upb");
+[8]STRING str  pangramuu := (      "kkk","lll","mmm","nnn","ooo","ppp","upb","UPB");
+[7]STRING str lpangram   := ("lwb","kkk","lll","mmm","nnn","ooo","ppp");
+[8]STRING str llpangram  := ("LWB","lwb","kkk","lll","mmm","nnn","ooo","ppp");
+
+SENTENCE  pangram   := HEAP NEWLISTVAL INITAB str  pangram;
+SENTENCE  pangram03 := HEAP NEWLISTVAL INITAB str  pangram03;
+SENTENCE  pangram034:= HEAP NEWLISTVAL INITAB str  pangram034;
+SENTENCE  pangram035:= HEAP NEWLISTVAL INITAB str  pangram035;
+SENTENCE  pangra    := HEAP NEWLISTVAL INITAB str  pangra ;
+SENTENCE   angram   := HEAP NEWLISTVAL INITAB str   angram;
+SENTENCE  pangramu  := HEAP NEWLISTVAL INITAB str  pangramu;
+SENTENCE  pangramuu := HEAP NEWLISTVAL INITAB str  pangramuu;
+SENTENCE lpangram   := HEAP NEWLISTVAL INITAB str lpangram;
+SENTENCE llpangram  := HEAP NEWLISTVAL INITAB str llpangram;
+
+print((REPR  pangram   ,new line));
+print((REPR  pangram03 ,new line));
+print((REPR  pangram034,new line));
+print((REPR  pangra    ,new line)); 
+print((REPR   angram   ,new line)); 
+print((REPR  pangramu  ,new line)); 
+print((REPR lpangram   ,new line)); 
+
+BEGIN
+    cut here("# generic LISTVAL+LINKVAL definitions #");
+    test desc := skip test("OP DOWN = (LINKVAL self)LINKVAL: ~;");
+    test desc := skip test("OP UP = (LINKVAL self)LINKVAL: ~;");
+    test desc := skip test("OP LWB = (LISTVAL self)LINKVAL: ~;");
+    test desc := skip test("OP UPB = (LISTVAL self)LINKVAL: ~;");
+    test desc := unit test("OP =:= = (REF LINKVAL left, right)LINKVAL: ~;");
+    test desc := unit test("OP INIT = (LISTVAL self)LISTVAL: ~;");
+    test desc := unit test("OP INITAB = (LINKVAL self, VALUEVAL value)LINKVAL: ~;");
+    test desc := unit test("OP REPR = (LINKVAL self)STRING:");
+    test desc := unit test("OP REPR = (LISTVAL self)STRING: ~;");
+    test desc := unit test("OP RPER = (LISTVAL self)STRING: ~;");
+
+    cut here("# LINKVAL+LINKVAL definitions #");
+        test desc := unit test("OP +:= = (LINKVAL self, append)LINKVAL: ~;");
+
+        SENTENCE sentence plusab = INIT HEAP NEWSENTENCE;
+        FOR enum TO UPB str pangram DO
+            sentence plusab +:= ( HEAP NEWLINKVAL INITAB str pangram[enum] );
+            print((whole(enum,-0),": ", REPR sentence plusab, new line))
+        OD;
+
+        printf(($g" "$,str pangram,$l$));
+        print((REPR sentence plusab, new line));
+        print((RPER sentence plusab, new line));
+        IF sentence plusab NE pangram THEN fail test FI;
+
+    test desc := unit test("OP DEL = (LINKVAL self)LINKVAL: ~;");
+        # "kkk","lll","mmm","nnn","ooo","ppp" #
+        SENTENCE sentence del big := HEAP NEWLISTVAL INITAB str pangram;
+
+        LINKVAL big := DEL LWB sentence del big;
+        print((REPR big,": ", REPR sentence del big, new line));
+        IF sentence del big NE angram THEN fail test FI;
+
+        SENTENCE sentence del mmm := HEAP NEWLISTVAL INITAB str pangram;
+        LINKVAL mmm := DEL UP UP LWB sentence del mmm;
+        print((REPR mmm,": ", REPR sentence del mmm, new line));
+        IF sentence del mmm NE pangram03 THEN fail test FI;
+
+    test desc := unit test("OP +=: = (LINKVAL push, self)LINKVAL: ~;");
+        SENTENCE sentence lwb := HEAP NEWLISTVAL INITAB str pangram;
+        LINKVAL word lwb := HEAP NEWLINKVAL INITAB "lwb";
+        word lwb +=: sentence lwb;
+        print((REPR word lwb,": ", REPR sentence lwb, new line));
+
+        IF sentence lwb NE lpangram THEN fail test FI
+END;
+BEGIN
+    cut here("# LINKVAL+SLICEVAL definitions #");
+    test desc := unit test("OP DEL = (SLICEVAL slice)SLICEVAL: ~;");
+        # "kkk","lll","mmm","nnn","ooo","ppp" #
+        SENTENCE sentence del mmm nnn ooo := HEAP NEWLISTVAL INITAB str pangram;
+
+        SUBSENT mmm nnn ooo := SUBSENT(3 UP sentence del mmm nnn ooo, 5 UP sentence del mmm nnn ooo);
+        SUBSENT del := DEL mmm nnn ooo;
+
+        print((REPR mmm nnn ooo,": ", REPR sentence del mmm nnn ooo, new line));
+        IF sentence del mmm nnn ooo NE pangram035 THEN fail test FI;
+
+    test desc := unit test("OP +:= = (LINKVAL self, SLICEVAL append)LINKVAL: ~;");
+        2 UP sentence del mmm nnn ooo +:= mmm nnn ooo;
+        print(("OP +=: = (SLICEVAL push, LISTVAL self)LISTVAL",REPR mmm nnn ooo,": ", REPR sentence del mmm nnn ooo, new line));
+        IF sentence del mmm nnn ooo NE pangram THEN fail test FI;
+
+    test desc := unit test("OP +=: = (SLICEVAL push, LINKVAL self)LINKVAL: ~;");
+        del := DEL mmm nnn ooo;
+        mmm nnn ooo +=: ( 3 UP sentence del mmm nnn ooo );
+        print(("+=:",REPR mmm nnn ooo,": ", REPR sentence del mmm nnn ooo, new line));
+        IF sentence del mmm nnn ooo NE pangram THEN fail test FI
+END;
+BEGIN
+    cut here("# LISTVAL+LINKVAL definitions #");
+    test desc := unit test("OP +:= = (LISTVAL self, LINKVAL append)LISTVAL: ~;");
+        SENTENCE sentence upb := HEAP NEWLISTVAL INITAB str pangram;
+        sentence upb +:= ( HEAP NEWLINKVAL INITAB "upb" );
+        print(("upb",": ", REPR sentence upb, new line));
+        IF sentence upb NE pangramu THEN fail test FI;
+
+    test desc := unit test("OP TRUNC = (LISTVAL self)LINKVAL: ~;");
+        LINKWORD upb0 = TRUNC sentence upb;
+        print(("upb",": ", REPR upb0, REPR sentence upb, new line));
+        IF sentence upb NE pangram THEN fail test FI;
+
+    test desc := unit test("OP -:= = (LISTVAL self, LINKVAL trunc)LISTVAL: ~;");
+        sentence upb +:= ( HEAP NEWLINKVAL INITAB "upb" );
+        NEWLINKWORD upb; sentence upb -:= upb;
+        print(("upb",": ", REPR upb, REPR sentence upb, new line));
+        IF sentence upb NE pangram THEN fail test FI;
+
+    test desc := unit test("OP +=: = (LINKVAL push, LISTVAL self)LISTVAL: ~;");
+        SENTENCE sentence lwb := HEAP NEWLISTVAL INITAB str pangram;
+        ( HEAP NEWLINKVAL INITAB "lwb" ) +=: sentence lwb;
+        print(("lwb",": ", REPR sentence lwb, new line));
+        IF sentence lwb NE lpangram THEN fail test FI;
+
+    test desc := unit test("OP -=: = (LISTVAL self)LINKVAL: ~;");
+        LINKWORD lwb = -=: sentence lwb;
+        print(("lwb",": ", REPR lwb, REPR sentence lwb, new line));
+        IF sentence lwb NE pangram THEN fail test FI;
+
+    test desc := unit test("OP -=: = (LINKVAL pop, LISTVAL self)LINKVAL: ~;");
+        lwb +=: sentence lwb;
+        lwb -=: sentence lwb;
+        print(("lwb",": ", REPR lwb, REPR sentence lwb, new line));
+        IF sentence lwb NE pangram THEN fail test FI
+END;
+BEGIN
+    cut here("# LISTVAL+VALUEVAL definitions - involves using HEAD #");
+
+    test desc := unit test("OP +:= = (LISTVAL self, VALUEVAL append)LISTVAL: ~;");
+        SENTENCE sentence upb := HEAP NEWLISTVAL INITAB str pangram;
+        sentence upb +:= "upb";
+        print(("upb",": ", REPR sentence upb, new line));
+        IF sentence upb NE pangramu THEN fail test FI;
+
+    test desc := unit test("OP TRUNCVAL = (LISTVAL self)VALUEVAL: ~;");
+        WORD upb0 = TRUNCVAL sentence upb;
+        print(("upb",": ", REPR upb0, REPR sentence upb, new line));
+        IF sentence upb NE pangram THEN fail test FI;
+
+    test desc := unit test("OP -:= = (LISTVAL self, VALUEVAL trunc)LISTVAL: ~;");
+        sentence upb +:= "upb";
+        WORD upb; sentence upb -:= upb;
+        print(("upb",": ", upb, REPR sentence upb, new line));
+        IF sentence upb NE pangram THEN fail test FI;
+
+    test desc := unit test("OP +=: = (VALUEVAL push, LISTVAL self)LISTVAL: ~;");
+        SENTENCE sentence lwb := HEAP NEWLISTVAL INITAB str pangram;
+        "lwb" +=: sentence lwb;
+        print(("lwb",": ", REPR sentence lwb, new line));
+        IF sentence lwb NE lpangram THEN fail test FI;
+
+    test desc := unit test("OP POPVAL = (LISTVAL self)VALUEVAL: ~;");
+        WORD lwb; lwb := POPVAL sentence lwb;
+        print(("lwb",": ", REPR lwb, REPR sentence lwb, new line));
+        IF sentence lwb NE pangram THEN fail test FI;
+
+    test desc := unit test("OP -=: = (REF VALUEVAL pop, LISTVAL self)VALUEVAL: ~;");
+        lwb +=: sentence lwb;
+        lwb -=: sentence lwb;
+        print(("lwb",": ", lwb, REPR sentence lwb, new line));
+        IF sentence lwb NE pangram THEN fail test FI
+END;
+[4]WORD ref lluu := ("LWB","lwb","upb","UPB");
+BEGIN
+    cut here("# LISTVAL+SLICEVAL definitions #");
+    test desc := unit test("OP +:= = (LISTVAL self, SLICEVAL append)LISTVAL: ~;");
+        SENTENCE sentence lluu := HEAP NEWLISTVAL INITAB str pangram;
+        SENTENCE lluu := HEAP NEWLISTVAL INITAB ref lluu;
+        SUBSENT uu = ( DOWN UPB lluu,    UPB lluu);
+        SENTENCE test := sentence lluu +:= uu;
+        IF sentence lluu NE pangramuu THEN fail test FI;
+    
+        print(("TRUNC UPB:",LONGREPR TRUNC sentence lluu,LONGREPR TRUNC sentence lluu,new line));
+
+    test desc := unit test("OP +=: = (SLICEVAL push, LISTVAL self)LISTVAL: ~;");
+        lluu := HEAP NEWLISTVAL INITAB ref lluu;
+        SUBSENT ll = (     LWB lluu, UP LWB lluu);
+
+        test := ll +=: sentence lluu;
+        print(("LL",": ", REPR ll, REPR test, REPR sentence lluu, new line));
+        IF sentence lluu NE llpangram THEN fail test FI
+
+END;
+BEGIN
+
+    cut here("# LISTVAL+LISTVAL definitions #");
+
+    test desc := unit test("OP +:= = (LISTVAL self, LISTVAL append)LISTVAL: ~;");
+        SENTENCE sentence lluu := HEAP NEWLISTVAL INITAB str pangram;
+        SENTENCE uu := HEAP NEWLISTVAL INITAB []STRING("upb","UPB");
+      # sentence lluu +:= "upb" +:= "UPB"; #
+        sentence lluu +:= uu;
+        IF sentence lluu NE pangramuu THEN fail test FI;
+
+    test desc := skip test("OP -:= = (LISTVAL self, LISTVAL trunc)LISTVAL: ~;");
+
+    test desc := unit test("OP +=: = (LISTVAL push, LISTVAL self)LISTVAL: ~;");
+        TRUNC sentence lluu; TRUNC sentence lluu;
+        SENTENCE ll := HEAP NEWLISTVAL INITAB []STRING("LWB","lwb");
+      # "LWB" +=: ( "lwb" +=: sentence lluu ); #
+        ll +=: sentence lluu;
+        IF sentence lluu NE llpangram THEN fail test FI;
+
+    test desc := skip test("OP -=: = (LISTVAL pop, LISTVAL self)LISTVAL: ~;");
+
+    test desc := unit test("OP CMP = (LISTVAL left right)INT: ~;");
+        SENTENCE sentence  = INIT HEAP NEWSENTENCE INITAB []WORD("kkk","lll","VEX","nnn","ooo","ppp");
+        SENTENCE sentence7 = INIT HEAP NEWSENTENCE INITAB []WORD("kkk","lll","VEX","nnn","ooo","ppp","!");
+        INT out;
+        print(("Test EQ: ",out:=sentence CMP sentence, new line));
+        IF out NE  0 THEN fail test FI;
+        print(("Test LT: ",out:=sentence CMP sentence7, new line));
+        IF out NE -1 THEN fail test FI;
+        print(("Test GT: ",out:=sentence7 CMP sentence, new line));
+        IF out NE  1 THEN fail test FI;
+END;
+exit:
+    IF out errno NE 0 THEN printf(($"errno:",gl$,out errno)) FI

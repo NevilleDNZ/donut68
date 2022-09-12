@@ -1,0 +1,37 @@
+[Big, fjords, vex, quick, waltz, nymph]
+[Big, fjords, quick, waltz, nymph]
+[Big, fjords, vex, quick, waltz]
+[fjords, vex, quick, waltz, nymph]
+[Big, fjords, vex, quick, waltz, nymph, upb]
+[lwb, Big, fjords, vex, quick, waltz, nymph]
+--------4>< - - - -  # generic LISTVAL+LINKVAL definitions #  - - - -
+Done :OP =:= = (REF LINKVAL left, right)LINKVAL: ~;
+Done :OP INIT = (LISTVAL self)LISTVAL: ~;
+Done :OP INITAB = (LINKVAL self, VALUEVAL value)LINKVAL: ~;
+Done :OP REPR = (LINKVAL self)STRING:
+Done :OP REPR = (LISTVAL self)STRING: ~;
+Done :OP RPER = (LISTVAL self)STRING: ~;
+--------4>< - - - -  # LINKVAL+LINKVAL definitions #  - - - -
+Done :OP +:= = (LINKVAL self, append)LINKVAL: ~;
+1: [Big]
+2: [Big, fjords]
+3: [Big, fjords, vex]
+4: [Big, fjords, vex, quick]
+5: [Big, fjords, vex, quick, waltz]
+6: [Big, fjords, vex, quick, waltz, nymph]
+Big fjords vex quick waltz nymph 
+[Big, fjords, vex, quick, waltz, nymph]
+[nymph, waltz, quick, vex, fjords, Big]
+--------4>< - - - -  # LINKVAL+SLICEVAL definitions #  - - - -
+--------4>< - - - -  # LISTVAL+LINKVAL definitions #  - - - -
+--------4>< - - - -  # LISTVAL+VALUEVAL definitions - involves using HEAD #  - - - -
+--------4>< - - - -  # LISTVAL+SLICEVAL definitions #  - - - -
+--------4>< - - - -  # LISTVAL+LISTVAL definitions #  - - - -
+Done :OP CMP = (LISTVAL left right)INT: ~;
+         +0
+         +0
+         +1
+         +1
+         -1
+         -1
+         +0

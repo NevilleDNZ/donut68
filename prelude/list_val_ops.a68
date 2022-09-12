@@ -1,0 +1,459 @@
+# -*- coding: utf-8 -*- #
+
+INT link ref count := 0;
+STRING repr nil = "NIL";
+
+PROC skip = VOID: ( break );
+
+PRIO INITAB = 1, -=: = 1, =: = 1, =:= = 1;
+
+MODE NEWLINKVAL = STRUCT(
+    LINKVAL down, up,
+    INT link ref,
+    VALUEVAL value
+  );
+MODE LINKVAL = REF NEWLINKVAL;
+LINKVAL linkval nil = LINKVAL(NIL);
+
+# generic LISTVAL+LINKVAL definitions #
+OP DOWN = (LINKVAL self)LINKVAL: down OF self;
+OP UP   = (LINKVAL self)LINKVAL: up   OF self;
+
+OP DOWN = (INT steps, LINKVAL self)LINKVAL: (
+    LINKVAL out := self;
+    TO steps DO out := down OF out OD;
+    out
+);
+
+OP UP = (INT steps, LINKVAL self)LINKVAL: (
+    LINKVAL out := self;
+    TO steps DO out := up OF out OD;
+    out
+);
+
+OP =: = (LINKVAL left, REF LINKVAL right)LINKVAL: (
+    LINKVAL out := right; right := left; 
+    out
+);
+
+CO
+OP =:= = (REF LINKVAL left, right)LINKVAL: (
+    right =: left =: right
+);
+END CO
+OP =:= = (REF LINKVAL left, right)LINKVAL: (
+    LINKVAL swap := left; left := right; right := swap
+);
+
+OP INIT = (LISTVAL self)LISTVAL: (
+    sentinel OF self := NIL;
+    self
+  );
+
+OP INITAB = (LINKVAL self, VALUEVAL value)LINKVAL: (
+    link ref OF self := link ref count +:= 1;
+    up OF self := down OF self := self;
+    value OF self := value;
+    self
+  );
+
+OP REPR = (LINKVAL self)STRING:
+    IF self IS LINKVAL(NIL) THEN
+        repr nil
+    ELSE
+        REPR value OF self
+    FI;
+
+OP LONGREPR = (LINKVAL self)STRING:
+    IF self IS LINKVAL(NIL) THEN
+        repr nil
+    ELSE
+        "<"+whole(link ref OF down OF self,-0)+
+        "-"+whole(link ref OF self,-0)+"-"+
+        whole(link ref OF up OF self,-0)+">"+
+        REPR value OF self
+    FI;
+
+# LINKVAL+LINKVAL definitions #
+OP DEL = (LINKVAL self)LINKVAL: (
+    LINKVAL up of self = up OF self;
+    up   OF self =:= up OF down OF self;
+    down OF self =:= down OF up of self;
+    self
+);
+
+OP +:= = (LINKVAL self, append)LINKVAL: (
+    down OF up OF self =:= down OF append;
+            up OF self =:= up   OF append;
+    self
+);
+
+OP +=: = (LINKVAL push, self)LINKVAL: (
+      up OF self =:=   up OF push;
+    down OF self =:= down OF push;
+    self
+);
+
+# LINKVAL+SLICEVAL definitions #
+MODE SLICEVAL = STRUCT(LINKVAL lwb, upb);
+#MODE LSLICEVAL = STRUCT(LINKVAL lwb, upb, LISTVAL);#
+
+OP LWB = (SLICEVAL slice)LINKVAL: lwb OF slice;
+OP UPB = (SLICEVAL slice)LINKVAL: upb OF slice;
+
+OP REPR = (SLICEVAL self)STRING: "["+REPR lwb OF self+":"+REPR upb OF self+"]";
+OP LONGREPR = (SLICEVAL self)STRING: "["+LONGREPR lwb OF self+":"+LONGREPR upb OF self+"]";
+
+OP DEL = (SLICEVAL slice)SLICEVAL: (
+    LINKVAL up of upb of slice = up   OF upb OF slice;
+    up   OF upb OF slice =:= up   OF down OF lwb OF slice;
+    down OF lwb OF slice =:= down OF up   of upb of slice;
+    slice
+);
+
+OP ROTUP = ([]REF LINKVAL links)LINKVAL: (
+    LINKVAL upb link = links[UPB links];
+    FOR enum FROM UPB links DOWNTO LWB links +1 DO links[enum] := links[enum-1] OD;
+    links[LWB links] := upb link
+);
+
+OP ROTDOWN = ([]REF LINKVAL links)LINKVAL: (
+    LINKVAL lwb link = links[LWB links];
+    FOR enum FROM LWB links TO UPB links -1 DO links[enum] := links[enum+1] OD;
+    links[UPB links] := lwb link
+);
+
+OP +:= = (LINKVAL self #self#, SLICEVAL append)LINKVAL: (
+    IF lwb OF append IS upb OF append THEN 
+        # slice is actually simply a SINGLE link #
+        self +:= LWB append
+    ELIF lwb OF append IS up OF upb OF append THEN
+        # slice is actually only a LIST #
+###            [L]     <=LWB s==slice==UPB s>    [UP L]
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ Down|   |<===|   |<=s=| L.|<===|   |<===|   |<=L=| s?|<===|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+       K        L?       q.       r        s.       M?       N
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+   Up|   |===>| q?|=M=>|   |===>|   |===>| M.|=q=>|   |===>|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+down: M?F => s; q.s => L
+up:   L.M => q; s.q => M
+###
+        down OF up OF self =:= down OF lwb OF append;
+        up OF self =:= up OF upb OF append
+    ELSE 
+###            [L]     <=LWB s==slice==UPB s>    [UP L]
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ Down|   |<===|   |<=p=| L.|<===|   |<===|   |<=L=| s?|<===|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+       K        L?       q.       r        s.       M?       N
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+   Up|   |===>| q?|=M=>|   |===>|   |===>| M.|=t=>|   |===>|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+down: M?L => s;       q.p => L;         t?s => p;
+      DOWN UP self =: DOWN LWB slice =: DOWN UP UPB slice =: DOWN UP self;
+up:   L?M => q;  s.t => M;       p?q => t; 
+      UP self =: UP UPB slice =: UP DOWN LWB slice =: UP self
+      UP self =: UP UPB slice =: UP DOWN LWB slice =: UP self
+     +---+    +---+                               +---+    +---+
+ Down|   |<===|   |<============================s=| p?|<===|   |
+     +---+    +---+                               +---+    +---+
+       o       p?                                   t?       u
+     +---+    +---+                               +---+    +---+
+   Up|   |===>| t?|=q============================>|   |===>|   |
+     +---+    +---+                               +---+    +---+
+###
+        LINKVAL up of self := up OF self, down of lwb of append := down OF lwb OF append;
+        ROTUP([]REF LINKVAL(down OF up of self, down OF lwb OF append, down OF up OF upb OF append));
+        ROTUP([]REF LINKVAL(up OF self,  up OF upb OF append,    up OF down of lwb of append))
+    FI;
+    self
+);
+
+OP +=: = (SLICEVAL push, LINKVAL self)LINKVAL: (
+    down OF self +:= push;
+    self
+);
+
+# LISTVAL+LINKVAL definitions #
+
+MODE NEWLISTVAL = STRUCT(
+    LINKVAL sentinel
+  );
+MODE LISTVAL = REF NEWLISTVAL;
+LISTVAL list val nil = LISTVAL(NIL);
+
+OP LWB = (LISTVAL self)REF LINKVAL: up OF (UPB self);
+OP UPB = (LISTVAL self)REF LINKVAL: sentinel OF self;
+
+OP DOWN = (INT steps, LISTVAL self)LINKVAL: steps DOWN UPB self;
+OP UP   = (INT steps, LISTVAL self)LINKVAL: steps UP   UPB self;
+
+OP ISEMPTY = (LISTVAL self)BOOL: UPB self IS LINKVAL(NIL);
+
+OP REPR = (LISTVAL self)STRING: (
+    IF UPB self IS LINKVAL(NIL) THEN
+        repr nil
+    ELSE
+        STRING out := "[", sep := "";
+        LINKVAL lwb := LWB self;
+        LINKVAL this := lwb;
+        TO 9 WHILE this ISNT NIL DO
+            out +:= sep + REPR this;
+            this := up OF this;
+            sep := ", ";
+            IF LINKVAL(this) IS lwb THEN done FI
+        OD;
+        done: out+"]"
+    FI
+);
+
+OP LONGREPR = (LISTVAL self)STRING: (
+    IF UPB self IS LINKVAL(NIL) THEN
+        repr nil
+    ELSE
+        STRING out := "[", sep := "";
+        LINKVAL lwb := LWB self;
+        LINKVAL this := lwb;
+        TO 9 WHILE this ISNT NIL DO
+            out +:= sep + LONGREPR this;
+            this := up OF this;
+            sep := ", ";
+            IF LINKVAL(this) IS lwb THEN done FI
+        OD;
+        done: out+"]"
+    FI
+);
+
+OP RPER = (LISTVAL self)STRING: (
+    IF UPB self IS LINKVAL(NIL) THEN
+        repr nil
+    ELSE
+        STRING out := "[", sep := "";
+        LINKVAL upb := UPB self;
+        LINKVAL this := upb;
+        # TO 9 # WHILE this ISNT NIL DO
+            out +:= sep + REPR this;
+            this := down OF this;
+            sep := ", ";
+            IF LINKVAL(this) IS upb THEN done FI
+        OD;
+        done: out+"]"
+    FI
+);
+
+OP +:= = (LISTVAL self, LINKVAL append)LISTVAL: (
+    append +=: self;
+    UPB self := LWB self;
+    self
+);
+
+OP TRUNC = (LISTVAL self)LINKVAL: (
+    LINKVAL out := NIL;
+    IF UPB self IS LWB self THEN # only one LINK left,set to NIL #
+        out := UPB self;
+        UPB self := NIL
+    ELSE
+        UPB self := down OF (UPB self);
+        out := DEL LWB self
+    FI;
+    out
+);
+
+OP -:= = (LISTVAL self, LINKVAL trunc)LISTVAL: (
+    trunc := TRUNC self;
+    self
+);
+
+OP +=: = (LINKVAL push, LISTVAL self)LISTVAL: (
+    IF UPB self IS LINKVAL(NIL) THEN
+        UPB self := push
+    ELSE
+        UPB self +:= push
+    FI;
+    self
+);
+
+OP -=: = (LISTVAL self)LINKVAL: (
+    DEL LWB self
+);
+
+OP -=: = (LINKVAL pop, LISTVAL self)LINKVAL: (
+    pop := -=: self
+);
+
+# LISTVAL+VALUEVAL definitions - involves using HEAD #
+OP +:= = (LISTVAL self, VALUEVAL append)LISTVAL: (
+    append +=: self;
+    UPB self := LWB self;
+    self
+);
+
+OP TRUNCVAL = (LISTVAL self)VALUEVAL: (
+    value OF ( TRUNC self )
+);
+
+OP -:= = (LISTVAL self, REF VALUEVAL trunc)LISTVAL: (
+    trunc := value OF (TRUNC self);
+    self
+);
+
+OP +=: = (VALUEVAL push, LISTVAL self)LISTVAL:
+    ( HEAP NEWLINKVAL INITAB push ) +=: self;
+
+OP POPVAL #-=:# = (LISTVAL self)VALUEVAL: (
+    value OF (-=: self)
+);
+
+OP -=: = (REF VALUEVAL pop, REF LISTVAL self)LISTVAL: (
+    pop := value OF ( -=: self );
+    self
+);
+
+OP INITAB = (LISTVAL self, []VALUEVAL array)LISTVAL: (
+    INIT self;
+    FOR enum FROM LWB array TO UPB array DO self+:=array[enum] OD;
+    self
+);
+
+# LISTVAL+SLICEVAL definitions #
+OP +:= = (LISTVAL self, SLICEVAL append)LISTVAL: (
+    IF UPB self ISNT LINKVAL(NIL) THEN
+        UPB self +:= append
+    FI;
+    UPB self := upb OF append;
+    self
+);
+
+OP +=: = (SLICEVAL push, LISTVAL self)LISTVAL: (
+    push +=: LWB self;
+    self
+);
+
+CO ToDo! I dont need this yet, so wont think about it.
+OP =:= = (SLICEVAL self, swap)LISTVAL: ( 
+    ###                <=LWB=====SELF=====UPB>          
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ Down|   |<===|   |<===|   |<===|   |<===|   |<===|   |<===|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ SELF! K        L        q        r        s        P        Q
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+   Up|   |===>|   |===>|   |===>|   |===>|   |===>|   |===>|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    ###                <=LWB=====swap=====UPB>          
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ Down|   |<===|   |<===|   |<===|   |<===|   |<===|   |<===|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ swap! o        p        M        N        O        t        u
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+   Up|   |===>|   |===>|   |===>|   |===>|   |===>|   |===>|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+###
+);
+END CO
+y
+# LISTVAL+LISTVAL definitions #
+OP +:= = (LISTVAL self, LISTVAL append)LISTVAL: (
+    self +:= SLICEVAL(LWB append, UPB append);
+    UPB self := UPB append;
+    self
+);
+
+OP +=: = (LISTVAL push, LISTVAL self)LISTVAL: (
+    SLICEVAL(LWB push, UPB push) +=: self;
+    self
+);
+
+CO
+    OP -:= = (LISTVAL self, LISTVAL trunc)LISTVAL: ~;
+    OP -=: = (LISTVAL pop, LISTVAL self)LISTVAL: ~;
+END CO
+
+MODE UNIONVAL = UNION(VALUEVAL, LINKVAL);
+
+PRIO CMP = 4;
+
+OP CMP = (UNIONVAL in left, in right)INT: (
+    VALUEVAL left = CASE in left IN 
+        (LINKVAL link): value OF link,
+        (VALUEVAL value): value
+      ESAC;
+    VALUEVAL right = CASE in right IN 
+        (LINKVAL link): value OF link,
+        (VALUEVAL value): value
+      ESAC;
+        
+    IF left < right THEN -1 ELIF right > left THEN 1 ELSE 0 FI
+    
+);
+
+OP <  = (LINKVAL left, right)BOOL: (left CMP right) <  0;
+OP <= = (LINKVAL left, right)BOOL: (left CMP right) <= 0;
+OP  = = (LINKVAL left, right)BOOL: (left CMP right)  = 0;
+OP /= = (LINKVAL left, right)BOOL: (left CMP right) /= 0;
+OP >= = (LINKVAL left, right)BOOL: (left CMP right) >= 0;
+OP >  = (LINKVAL left, right)BOOL: (left CMP right) >  0;
+OP LT = (LINKVAL left, right)BOOL: (left CMP right) LT 0;
+OP LE = (LINKVAL left, right)BOOL: (left CMP right) LE 0;
+OP EQ = (LINKVAL left, right)BOOL: (left CMP right) EQ 0;
+OP NE = (LINKVAL left, right)BOOL: (left CMP right) NE 0;
+OP GE = (LINKVAL left, right)BOOL: (left CMP right) GE 0;
+OP GT = (LINKVAL left, right)BOOL: (left CMP right) GT 0;
+
+OP CMP = (LISTVAL left, right)INT: (
+    IF sentinel OF left IS LINKVAL(NIL) THEN
+        IF sentinel OF right IS LINKVAL(NIL) THEN 0 ELSE -1 FI
+    ELIF   sentinel OF right IS LINKVAL(NIL) THEN 1
+    ELSE
+        LINKVAL lwb left = LWB left;
+        LINKVAL this left := lwb left;
+        LINKVAL lwb right = LWB right;
+        LINKVAL this right := lwb right;
+        INT out := 0;
+        TO 99  #WHILE this left ISNT NIL OR this right ISNT NIL # DO
+            this left := up OF this left;
+            this right := up OF this right;
+            IF LINKVAL(this left) IS lwb left THEN
+               out := IF LINKVAL(this right) IS lwb right THEN 0 ELSE -1 FI; done
+            ELIF LINKVAL(this right) IS lwb right THEN out := 1; done 
+            ELIF
+                INT cmp = value OF this left CMP value OF this right;
+              # IF # cmp NE 0 
+            THEN out := cmp; done 
+            ELSE SKIP FI
+            
+        OD;
+        done: out
+    FI
+);
+
+OP <  = (LISTVAL left, right)BOOL: (left CMP right) <  0;
+OP <= = (LISTVAL left, right)BOOL: (left CMP right) <= 0;
+OP  = = (LISTVAL left, right)BOOL: (left CMP right)  = 0;
+OP /= = (LISTVAL left, right)BOOL: (left CMP right) /= 0;
+OP >= = (LISTVAL left, right)BOOL: (left CMP right) >= 0;
+OP >  = (LISTVAL left, right)BOOL: (left CMP right) >  0;
+OP LT = (LISTVAL left, right)BOOL: (left CMP right) LT 0;
+OP LE = (LISTVAL left, right)BOOL: (left CMP right) LE 0;
+OP EQ = (LISTVAL left, right)BOOL: (left CMP right) EQ 0;
+OP NE = (LISTVAL left, right)BOOL: (left CMP right) NE 0;
+OP GE = (LISTVAL left, right)BOOL: (left CMP right) GE 0;
+OP GT = (LISTVAL left, right)BOOL: (left CMP right) GT 0;
+
+MODE YIELDLINKVAL = PROC(LINKVAL)VOID;
+MODE GENLINKVAL = PROC(YIELDLINKVAL)VOID;
+PROC lop link gen = (LISTVAL self, YIELDLINKVAL yield)VOID:
+    IF UPB self ISNT LINKVAL(NIL) THEN
+        LINKVAL lwb := LWB self;
+        LINKVAL this := lwb;
+        # WHILE this ISNT LINKVAL(NIL) # DO
+            yield(this);
+            this := up OF this;
+            IF LINKVAL(this) IS lwb THEN done FI
+        OD;
+    done: SKIP
+    FI;
+
+SKIP
