@@ -1,3 +1,104 @@
-358   OP +:= = (LISTVAL self, LISTVAL append)LISTVAL: (
-      1                                                
-a68g: prelude/list_val_ops.a68: syntax error: 1: possibly a missing or erroneous separator nearby.
+[kkk, lll, mmm, nnn, ooo, ppp]
+[kkk, lll, nnn, ooo, ppp]
+[kkk, lll, ooo, ppp]
+[kkk, lll, mmm, nnn, ooo]
+[lll, mmm, nnn, ooo, ppp]
+[kkk, lll, mmm, nnn, ooo, ppp, upb]
+[lwb, kkk, lll, mmm, nnn, ooo, ppp]
+--------8>< - - - -  # generic LISTVAL+LINKVAL definitions #  - - - -
+
+    ===OP =:= = (REF LINKVAL left, right)LINKVAL: ~;===
+
+    ===OP INIT = (LISTVAL self)LISTVAL: ~;===
+
+    ===OP INITAB = (LINKVAL self, VALUEVAL value)LINKVAL: ~;===
+
+    ===OP REPR = (LINKVAL self)STRING:===
+
+    ===OP REPR = (LISTVAL self)STRING: ~;===
+
+    ===OP RPER = (LISTVAL self)STRING: ~;===
+--------8>< - - - -  # LINKVAL+LINKVAL definitions #  - - - -
+
+    ===OP +:= = (LINKVAL self, append)LINKVAL: ~;===
+1: [kkk]
+2: [kkk, lll]
+3: [kkk, lll, mmm]
+4: [kkk, lll, mmm, nnn]
+5: [kkk, lll, mmm, nnn, ooo]
+6: [kkk, lll, mmm, nnn, ooo, ppp]
+kkk lll mmm nnn ooo ppp 
+[kkk, lll, mmm, nnn, ooo, ppp]
+[ppp, ooo, nnn, mmm, lll, kkk]
+
+    ===OP DEL = (LINKVAL self)LINKVAL: ~;===
+kkk: [lll, mmm, nnn, ooo, ppp]
+mmm: [kkk, lll, nnn, ooo, ppp]
+
+    ===OP +=: = (LINKVAL push, self)LINKVAL: ~;===
+lwb: [lwb, kkk, lll, mmm, nnn, ooo, ppp]
+--------8>< - - - -  # LINKVAL+SLICEVAL definitions #  - - - -
+
+    ===OP DEL = (SLICEVAL slice)SLICEVAL: ~;===
+[mmm:ooo]: [kkk, lll, ppp]
+
+    ===OP +:= = (LINKVAL self, SLICEVAL append)LINKVAL: ~;===
+OP +=: = (SLICEVAL push, LISTVAL self)LISTVAL[mmm:ooo]: [kkk, lll, mmm, nnn, ooo, ppp]
+
+    ===OP +=: = (SLICEVAL push, LINKVAL self)LINKVAL: ~;===
++=:[mmm:ooo]: [kkk, lll, mmm, nnn, ooo, ppp]
+--------8>< - - - -  # LISTVAL+LINKVAL definitions #  - - - -
+
+    ===OP +:= = (LISTVAL self, LINKVAL append)LISTVAL: ~;===
+upb: [kkk, lll, mmm, nnn, ooo, ppp, upb]
+
+    ===OP TRUNC = (LISTVAL self)LINKVAL: ~;===
+upb: upb[kkk, lll, mmm, nnn, ooo, ppp]
+
+    ===OP -:= = (LISTVAL self, LINKVAL trunc)LISTVAL: ~;===
+upb: upb[kkk, lll, mmm, nnn, ooo, ppp]
+
+    ===OP +=: = (LINKVAL push, LISTVAL self)LISTVAL: ~;===
+lwb: [lwb, kkk, lll, mmm, nnn, ooo, ppp]
+
+    ===OP -=: = (LISTVAL self)LINKVAL: ~;===
+lwb: lwb[kkk, lll, mmm, nnn, ooo, ppp]
+
+    ===OP -=: = (LINKVAL pop, LISTVAL self)LINKVAL: ~;===
+lwb: lwb[kkk, lll, mmm, nnn, ooo, ppp]
+--------8>< - - - -  # LISTVAL+VALUEVAL definitions - involves using HEAD #  - - - -
+
+    ===OP +:= = (LISTVAL self, VALUEVAL append)LISTVAL: ~;===
+upb: [kkk, lll, mmm, nnn, ooo, ppp, upb]
+
+    ===OP TRUNCVAL = (LISTVAL self)VALUEVAL: ~;===
+upb: upb[kkk, lll, mmm, nnn, ooo, ppp]
+
+    ===OP -:= = (LISTVAL self, VALUEVAL trunc)LISTVAL: ~;===
+upb: upb[kkk, lll, mmm, nnn, ooo, ppp]
+
+    ===OP +=: = (VALUEVAL push, LISTVAL self)LISTVAL: ~;===
+lwb: [lwb, kkk, lll, mmm, nnn, ooo, ppp]
+
+    ===OP POPVAL = (LISTVAL self)VALUEVAL: ~;===
+lwb: lwb[kkk, lll, mmm, nnn, ooo, ppp]
+
+    ===OP -=: = (REF VALUEVAL pop, LISTVAL self)VALUEVAL: ~;===
+lwb: lwb[kkk, lll, mmm, nnn, ooo, ppp]
+--------8>< - - - -  # LISTVAL+SLICEVAL definitions #  - - - -
+
+    ===OP +:= = (LISTVAL self, SLICEVAL append)LISTVAL: ~;===
+TRUNC UPB:<130-130-130>UPB<129-129-129>upb
+
+    ===OP +=: = (SLICEVAL push, LISTVAL self)LISTVAL: ~;===
+LL: [LWB:lwb][LWB, lwb, kkk, lll, mmm, nnn, ooo, ppp][LWB, lwb, kkk, lll, mmm, nnn, ooo, ppp]
+--------8>< - - - -  # LISTVAL+LISTVAL definitions #  - - - -
+
+    ===OP +:= = (LISTVAL self, LISTVAL append)LISTVAL: ~;===
+
+    ===OP +=: = (LISTVAL push, LISTVAL self)LISTVAL: ~;===
+
+    ===OP CMP = (LISTVAL left right)INT: ~;===
+Test EQ:          +0
+Test LT:          -1
+Test GT:          +1

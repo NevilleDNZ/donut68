@@ -27,7 +27,7 @@ PROC skip test = (STRING msg)STRING: test desc;
 PROC fail test = VOID: (
     print(("FAILED:",test desc, new line));
     out errno := -1
-    ; exit 
+    ; exit
 );
 
 [6]STRING str  pangram0  := (      "Big","fjords","vex","quick","waltz","nymph");
@@ -57,10 +57,10 @@ SENTENCE llpangram  := HEAP NEWLISTVAL INITAB str llpangram;
 print((REPR  pangram   ,new line));
 print((REPR  pangram03 ,new line));
 print((REPR  pangram034,new line));
-print((REPR  pangra    ,new line)); 
-print((REPR   angram   ,new line)); 
-print((REPR  pangramu  ,new line)); 
-print((REPR lpangram   ,new line)); 
+print((REPR  pangra    ,new line));
+print((REPR   angram   ,new line));
+print((REPR  pangramu  ,new line));
+print((REPR lpangram   ,new line));
 
 BEGIN
     cut here("# generic LISTVAL+LINKVAL definitions #");
@@ -179,7 +179,7 @@ BEGIN
         IF sentence upb NE pangramu THEN fail test FI;
 
     test desc := unit test("OP TRUNCVAL = (LISTVAL self)VALUEVAL: ~;");
-        WORD upb0 = TRUNCVAL sentence upb;
+        WORD upb0 = TRUNCVALUE sentence upb;
         print(("upb",": ", REPR upb0, REPR sentence upb, new line));
         IF sentence upb NE pangram THEN fail test FI;
 
@@ -196,7 +196,7 @@ BEGIN
         IF sentence lwb NE lpangram THEN fail test FI;
 
     test desc := unit test("OP POPVAL = (LISTVAL self)VALUEVAL: ~;");
-        WORD lwb; lwb := POPVAL sentence lwb;
+        WORD lwb; lwb := POPVALUE sentence lwb;
         print(("lwb",": ", REPR lwb, REPR sentence lwb, new line));
         IF sentence lwb NE pangram THEN fail test FI;
 
@@ -215,7 +215,7 @@ BEGIN
         SUBSENT uu = ( DOWN UPB lluu,    UPB lluu);
         SENTENCE test := sentence lluu +:= uu;
         IF sentence lluu NE pangramuu THEN fail test FI;
-    
+
         print(("TRUNC UPB:",LONGREPR TRUNC sentence lluu,LONGREPR TRUNC sentence lluu,new line));
 
     test desc := unit test("OP +=: = (SLICEVAL push, LISTVAL self)LISTVAL: ~;");

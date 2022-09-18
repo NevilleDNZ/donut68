@@ -9,12 +9,12 @@
 ########################
 # define some globals. #
 ########################
-BOOL 
+BOOL
     with curses := TRUE,
     with status := TRUE,
     with stty := TRUE;
 
-INT 
+INT
    upb deaths=10,
    shrink=1;
 
@@ -98,12 +98,12 @@ FORMAT pos fmt = $"("g(-0)","g(-0)")"$;
 MODE OPTPOS = UNION(VOID, POS);
 
 MODE DIR = STRUCT(INT dline, dcolumn);
-FORMAT dir fmt = $"["g(0)","g(0)"]"$; 
+FORMAT dir fmt = $"["g(0)","g(0)"]"$;
 # MODE OPTDIR = UNION(VOID, DIR); #
 
 OP + = (POS pos, DIR dir)POS: ( line OF pos + dline OF dir, column OF pos + dcolumn OF dir );
 
-PROC random pos = POS: 
+PROC random pos = POS:
     (ENTIER (random * UPB page + LWB page),ENTIER (random * UPB page[LWB page] + LWB page[LWB page]));
 
 MODE DIRATTR = STRUCT(STRING desc, ICON icon, CHAR input, DIR dir, POS limit, PROC VOID colour);
@@ -182,7 +182,7 @@ INT snake growth = 9;
 
 OP INITAB = (SNAKEHEAD self, OPTPOS opt pos head)SNAKEHEAD:(
 
-    POS pos head = 
+    POS pos head =
         CASE opt pos head IN
             (POS pos):  pos,
             (VOID): POS(UPB page OVER 2, UPB page[LWB page] OVER 2)
@@ -214,7 +214,7 @@ OP INITAB = (SNAKESEGMENT self, POS pos)SNAKESEGMENT: (
     self
 );
 
-OP REPR = (SNAKESEGMENT self)STRING: 
+OP REPR = (SNAKESEGMENT self)STRING:
     "("+whole(line OF pos OF self,0)+","+whole(column OF pos OF self,0)+")";
 
 ##########################################
@@ -269,7 +269,7 @@ OP +:= = (SNAKEHEAD self, DIRATTR dir attr)SNAKEHEAD: ( # append to snake #
     ICON icon = page[line OF next pos][column OF next pos ];
     IF icon = gold icon THEN
         move then put char(next pos, icon OF dir attr OF self);
-        TO snake growth DO 
+        TO snake growth DO
             segment list OF self +:= ( HEAP NEWLINKVAL INITAB ( HEAP NEWSNAKESEGMENT INITAB POS(line OF next pos,column OF next pos) ) )
         OD;
         gold count +:= 1
@@ -297,7 +297,7 @@ OP +:= = (SNAKEHEAD self, DIRATTR dir attr)SNAKEHEAD: ( # append to snake #
                 $x"gold#",   g(0)":"$,gold count,
                 $x"died#",   g(0)":"$,died count,
                 $x"teleport#",   g(0)":"$,teleport count,
-                CO 
+                CO
                 $x"collections=",   g(-0)$, collections,
                 $x"wait#",   g(0)":"$,move count,
                 $x"loop#",   g(0)":"$,loop count,
@@ -323,7 +323,7 @@ REAL gold next add time := clock + gold add period;
 
 PROC gold add = VOID: (
     gold next add time +:= gold add period;
-    POS gold pos = random pos; 
+    POS gold pos = random pos;
     curses yellow;
     move then put char(gold pos, gold icon)
 );
@@ -410,6 +410,6 @@ IF with curses THEN curses start; curses clear; page splash FI;
     FI;
 IF with curses THEN curses end; stop FI
 EXIT
-goat droppings: 
+goat droppings:
     IF with curses THEN curses end; stop FI;
     print(("Goat droppings...", newline))

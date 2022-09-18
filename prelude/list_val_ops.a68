@@ -32,7 +32,7 @@ OP UP = (INT steps, LINKVAL self)LINKVAL: (
 );
 
 OP =: = (LINKVAL left, REF LINKVAL right)LINKVAL: (
-    LINKVAL out := right; right := left; 
+    LINKVAL out := right; right := left;
     out
 );
 
@@ -124,7 +124,7 @@ OP ROTDOWN = ([]REF LINKVAL links)LINKVAL: (
 );
 
 OP +:= = (LINKVAL self #self#, SLICEVAL append)LINKVAL: (
-    IF lwb OF append IS upb OF append THEN 
+    IF lwb OF append IS upb OF append THEN
         # slice is actually simply a SINGLE link #
         self +:= LWB append
     ELIF lwb OF append IS up OF upb OF append THEN
@@ -142,7 +142,7 @@ up:   L.M => q; s.q => M
 ###
         down OF up OF self =:= down OF lwb OF append;
         up OF self =:= up OF upb OF append
-    ELSE 
+    ELSE
 ###            [L]     <=LWB s==slice==UPB s>    [UP L]
      +---+    +---+    +---+    +---+    +---+    +---+    +---+
  Down|   |<===|   |<=p=| L.|<===|   |<===|   |<=L=| s?|<===|   |
@@ -153,7 +153,7 @@ up:   L.M => q; s.q => M
      +---+    +---+    +---+    +---+    +---+    +---+    +---+
 down: M?L => s;       q.p => L;         t?s => p;
       DOWN UP self =: DOWN LWB slice =: DOWN UP UPB slice =: DOWN UP self;
-up:   L?M => q;  s.t => M;       p?q => t; 
+up:   L?M => q;  s.t => M;       p?q => t;
       UP self =: UP UPB slice =: UP DOWN LWB slice =: UP self
       UP self =: UP UPB slice =: UP DOWN LWB slice =: UP self
      +---+    +---+                               +---+    +---+
@@ -290,7 +290,7 @@ OP +:= = (LISTVAL self, VALUEVAL append)LISTVAL: (
     self
 );
 
-OP TRUNCVAL = (LISTVAL self)VALUEVAL: (
+OP TRUNCVALUE # -:= # = (LISTVAL self)VALUEVAL: (
     value OF ( TRUNC self )
 );
 
@@ -302,7 +302,7 @@ OP -:= = (LISTVAL self, REF VALUEVAL trunc)LISTVAL: (
 OP +=: = (VALUEVAL push, LISTVAL self)LISTVAL:
     ( HEAP NEWLINKVAL INITAB push ) +=: self;
 
-OP POPVAL #-=:# = (LISTVAL self)VALUEVAL: (
+OP POPVALUE #-=:# = (LISTVAL self)VALUEVAL: (
     value OF (-=: self)
 );
 
@@ -332,8 +332,8 @@ OP +=: = (SLICEVAL push, LISTVAL self)LISTVAL: (
 );
 
 CO ToDo! I dont need this yet, so wont think about it.
-OP =:= = (SLICEVAL self, swap)LISTVAL: ( 
-    ###                <=LWB=====SELF=====UPB>          
+OP =:= = (SLICEVAL self, swap)LISTVAL: (
+    ###                <=LWB=====SELF=====UPB>
      +---+    +---+    +---+    +---+    +---+    +---+    +---+
  Down|   |<===|   |<===|   |<===|   |<===|   |<===|   |<===|   |
      +---+    +---+    +---+    +---+    +---+    +---+    +---+
@@ -342,7 +342,7 @@ OP =:= = (SLICEVAL self, swap)LISTVAL: (
    Up|   |===>|   |===>|   |===>|   |===>|   |===>|   |===>|   |
      +---+    +---+    +---+    +---+    +---+    +---+    +---+
  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    ###                <=LWB=====swap=====UPB>          
+                       <=LWB=====swap====UPB=>
      +---+    +---+    +---+    +---+    +---+    +---+    +---+
  Down|   |<===|   |<===|   |<===|   |<===|   |<===|   |<===|   |
      +---+    +---+    +---+    +---+    +---+    +---+    +---+
@@ -353,7 +353,7 @@ OP =:= = (SLICEVAL self, swap)LISTVAL: (
 ###
 );
 END CO
-y
+
 # LISTVAL+LISTVAL definitions #
 OP +:= = (LISTVAL self, LISTVAL append)LISTVAL: (
     self +:= SLICEVAL(LWB append, UPB append);
@@ -376,17 +376,17 @@ MODE UNIONVAL = UNION(VALUEVAL, LINKVAL);
 PRIO CMP = 4;
 
 OP CMP = (UNIONVAL in left, in right)INT: (
-    VALUEVAL left = CASE in left IN 
+    VALUEVAL left = CASE in left IN
         (LINKVAL link): value OF link,
         (VALUEVAL value): value
       ESAC;
-    VALUEVAL right = CASE in right IN 
+    VALUEVAL right = CASE in right IN
         (LINKVAL link): value OF link,
         (VALUEVAL value): value
       ESAC;
-        
+
     IF left < right THEN -1 ELIF right > left THEN 1 ELSE 0 FI
-    
+
 );
 
 OP <  = (LINKVAL left, right)BOOL: (left CMP right) <  0;
@@ -417,14 +417,13 @@ OP CMP = (LISTVAL left, right)INT: (
             this right := up OF this right;
             IF LINKVAL(this left) IS lwb left THEN
                out := IF LINKVAL(this right) IS lwb right THEN 0 ELSE -1 FI; done
-            ELIF LINKVAL(this right) IS lwb right THEN out := 1; done 
+            ELIF LINKVAL(this right) IS lwb right THEN out := 1; done
             ELIF
                 INT cmp = value OF this left CMP value OF this right;
-              # IF # cmp NE 0 
-            THEN out := cmp; done 
+              # IF # cmp NE 0
+            THEN out := cmp; done
             ELSE SKIP FI
-            
-        OD;
+             OD;
         done: out
     FI
 );
@@ -444,7 +443,8 @@ OP GT = (LISTVAL left, right)BOOL: (left CMP right) GT 0;
 
 MODE YIELDLINKVAL = PROC(LINKVAL)VOID;
 MODE GENLINKVAL = PROC(YIELDLINKVAL)VOID;
-PROC lop link gen = (LISTVAL self, YIELDLINKVAL yield)VOID:
+PRIO GEN = 1;
+OP GEN = (LISTVAL self, YIELDLINKVAL yield)VOID:
     IF UPB self ISNT LINKVAL(NIL) THEN
         LINKVAL lwb := LWB self;
         LINKVAL this := lwb;

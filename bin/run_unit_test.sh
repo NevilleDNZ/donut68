@@ -11,17 +11,21 @@ m=30
 esc=`echo | tr "\012" "\033"`
 for color in black red green yellow blue magenta cyan white; do
     eval fg_$color="$esc[$m"m";"
+    # eval fg_$color="'$(tput setaf 12$m)'"
     ((m=m+1))
 done
 
+fg_default="$esc[39m"
+bg_default="$esc[49m"
+
 pass(){
-    echo $fg_green"PASS: $@$fg_white"
+    echo $fg_green"PASS: $@$fg_default"
     pass_l="$pass_l$pass_sep$2"
     pass_sep=" "
 }
 
 fail(){
-    echo $fg_red"FAIL: $@$fg_white"
+    echo $fg_red"FAIL: $@$fg_default"
     fail_l="$fail_l$fail_sep$2"
     fail_sep=" "
 }
@@ -49,14 +53,14 @@ for prog in "$@"; do
         diff="$dirname_prog/candidate/$basename_prog.$basename_compiler.diff.lst"
 
         ( $compiler "$prog" 2>&1 ) > "$candidate"
-        if [ ! -f "$benchmark" ]; then 
-            fail "$compiler" "$prog$fg_white" 
-            echo MISSING: try "$fg_yellow""cp" "$candidate" "$benchmark$fg_white"
+        if [ ! -f "$benchmark" ]; then
+            fail "$compiler" "$prog$fg_default"
+            echo MISSING: try "$fg_yellow""cp" "$candidate" "$benchmark$fg_default"
         elif diff $opt_diff "$benchmark" "$candidate" > "$diff"; then
-            pass "$compiler" "$prog" 
+            pass "$compiler" "$prog"
         else
-            fail "$compiler" "$prog" 
-            echo MISSING: try "$fg_yellow""vimdiff"  "$candidate" "$benchmark$fg_white"
+            fail "$compiler" "$prog"
+            echo MISSING: try "$fg_yellow""vimdiff"  "$candidate" "$benchmark$fg_default"
             version $compiler
             # for file in "$prog" $diff; do
             for file in $diff; do
@@ -67,6 +71,6 @@ for prog in "$@"; do
     done
 done
 [ -z "$pass_l" ] && pass_l="None"
-echo "$fg_green"PASSED:" $pass_l$fg_white"
+echo "$fg_green"PASSED:" $pass_l$fg_default"
 [ -z "$fail_l" ] && fail_l="None"
-echo "$fg_red"FAILED:" $fail_l$fg_white"
+echo "$fg_red"FAILED:" $fail_l$fg_default"
