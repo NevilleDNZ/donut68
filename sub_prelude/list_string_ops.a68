@@ -1,0 +1,469 @@
+# -*- coding: utf-8 -*- #
+
+# PRIO INITAB = 1, -=: = 1, =: = 1, =:= = 1; #
+
+MODE NEWLINKSTRING = STRUCT(
+    LINKSTRING down, up,
+    INT link ref,
+    VALUESTRING value
+  );
+MODE LINKSTRING = REF NEWLINKSTRING;
+
+# generic LISTSTRING+LINKSTRING definitions #
+OP DOWN = (LINKSTRING self)LINKSTRING: down OF self;
+OP UP   = (LINKSTRING self)LINKSTRING: up   OF self;
+
+OP DOWN = (INT steps, LINKSTRING self)LINKSTRING: (
+    LINKSTRING out := self;
+    TO steps DO out := down OF out OD;
+    out
+);
+
+OP UP = (INT steps, LINKSTRING self)LINKSTRING: (
+    LINKSTRING out := self;
+    TO steps DO out := up OF out OD;
+    out
+);
+
+OP =: = (LINKSTRING left, REF LINKSTRING right)LINKSTRING: (
+    LINKSTRING out := right; right := left;
+    out
+);
+
+CO
+OP =:= = (REF LINKSTRING left, right)LINKSTRING: (
+    right =: left =: right
+);
+END CO
+OP =:= = (REF LINKSTRING left, right)LINKSTRING: (
+    LINKSTRING swap := left; left := right; right := swap
+);
+
+OP INIT = (LISTSTRING self)LISTSTRING: (
+    sentinel OF self := NIL;
+    self
+  );
+
+OP INITAB = (LINKSTRING self, VALUESTRING value)LINKSTRING: (
+    link ref OF self := link ref count +:= 1;
+    up OF self := down OF self := self;
+    value OF self := value;
+    self
+  );
+
+PROC repr link string## = (LINKSTRING self)STRING:
+    IF self IS LINKSTRING(NIL) THEN
+        repr nil
+    ELSE
+        REPR value OF self
+    FI;
+OP (LINKSTRING #self#)STRING REPR = repr link string##;
+
+PROC long repr link string## = (LINKSTRING self)STRING:
+    IF self IS LINKSTRING(NIL) THEN
+        repr nil
+    ELSE
+        "<"+whole(link ref OF down OF self,-0)+
+        "-"+whole(link ref OF self,-0)+"-"+
+        whole(link ref OF up OF self,-0)+">"+
+        REPR value OF self
+    FI;
+OP (LINKSTRING #self#)STRING LONGREPR = long repr link string##;
+
+# LINKSTRING+LINKSTRING definitions #
+OP DEL = (LINKSTRING self)LINKSTRING: (
+    LINKSTRING up of self = up OF self;
+    up   OF self =:= up OF down OF self;
+    down OF self =:= down OF up of self;
+    self
+);
+
+OP +:= = (LINKSTRING self, append)LINKSTRING: (
+    down OF up OF self =:= down OF append;
+            up OF self =:= up   OF append;
+    self
+);
+
+OP +=: = (LINKSTRING push, self)LINKSTRING: (
+      up OF self =:=   up OF push;
+    down OF self =:= down OF push;
+    self
+);
+
+# LINKSTRING+SLICESTRING definitions #
+MODE SLICESTRING = STRUCT(LINKSTRING lwb, upb);
+#MODE LSLICESTRING = STRUCT(LINKSTRING lwb, upb, LISTSTRING);#
+
+OP LWB = (SLICESTRING slice)LINKSTRING: lwb OF slice;
+OP UPB = (SLICESTRING slice)LINKSTRING: upb OF slice;
+
+PROC repr slice string## = (SLICESTRING self)STRING: "["+REPR lwb OF self+":"+REPR upb OF self+"]";
+OP (SLICESTRING #self#)STRING REPR = repr slice string##;
+PROC long repr slice string## = (SLICESTRING self)STRING: "["+LONGREPR lwb OF self+":"+LONGREPR upb OF self+"]";
+OP (SLICESTRING #self#)STRING LONGREPR = long repr slice string##;
+
+OP DEL = (SLICESTRING slice)SLICESTRING: (
+    LINKSTRING up of upb of slice = up   OF upb OF slice;
+    up   OF upb OF slice =:= up   OF down OF lwb OF slice;
+    down OF lwb OF slice =:= down OF up   of upb of slice;
+    slice
+);
+
+OP ROTUP = ([]REF LINKSTRING links)LINKSTRING: (
+    LINKSTRING upb link = links[UPB links];
+    FOR enum FROM UPB links DOWNTO LWB links +1 DO links[enum] := links[enum-1] OD;
+    links[LWB links] := upb link
+);
+
+OP ROTDOWN = ([]REF LINKSTRING links)LINKSTRING: (
+    LINKSTRING lwb link = links[LWB links];
+    FOR enum FROM LWB links TO UPB links -1 DO links[enum] := links[enum+1] OD;
+    links[UPB links] := lwb link
+);
+
+OP +:= = (LINKSTRING self #self#, SLICESTRING append)LINKSTRING: (
+    IF lwb OF append IS upb OF append THEN
+        # slice is actually simply a SINGLE link #
+        self +:= LWB append
+    ELIF lwb OF append IS up OF upb OF append THEN
+        # slice is actually only a LIST #
+###            [L]     <=LWB s==slice==UPB s>    [UP L]
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ Down|   |<===|   |<=s=| L.|<===|   |<===|   |<=L=| s?|<===|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+       K        L?       q.       r        s.       M?       N
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+   Up|   |===>| q?|=M=>|   |===>|   |===>| M.|=q=>|   |===>|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+down: M?F => s; q.s => L
+up:   L.M => q; s.q => M
+###
+        down OF up OF self =:= down OF lwb OF append;
+        up OF self =:= up OF upb OF append
+    ELSE
+###            [L]     <=LWB s==slice==UPB s>    [UP L]
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ Down|   |<===|   |<=p=| L.|<===|   |<===|   |<=L=| s?|<===|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+       K        L?       q.       r        s.       M?       N
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+   Up|   |===>| q?|=M=>|   |===>|   |===>| M.|=t=>|   |===>|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+down: M?L => s;       q.p => L;         t?s => p;
+      DOWN UP self =: DOWN LWB slice =: DOWN UP UPB slice =: DOWN UP self;
+up:   L?M => q;  s.t => M;       p?q => t;
+      UP self =: UP UPB slice =: UP DOWN LWB slice =: UP self
+      UP self =: UP UPB slice =: UP DOWN LWB slice =: UP self
+     +---+    +---+                               +---+    +---+
+ Down|   |<===|   |<============================s=| p?|<===|   |
+     +---+    +---+                               +---+    +---+
+       o       p?                                   t?       u
+     +---+    +---+                               +---+    +---+
+   Up|   |===>| t?|=q============================>|   |===>|   |
+     +---+    +---+                               +---+    +---+
+###
+        LINKSTRING up of self := up OF self, down of lwb of append := down OF lwb OF append;
+        ROTUP([]REF LINKSTRING(down OF up of self, down OF lwb OF append, down OF up OF upb OF append));
+        ROTUP([]REF LINKSTRING(up OF self,  up OF upb OF append,    up OF down of lwb of append))
+    FI;
+    self
+);
+
+OP +=: = (SLICESTRING push, LINKSTRING self)LINKSTRING: (
+    down OF self +:= push;
+    self
+);
+
+# LISTSTRING+LINKSTRING definitions #
+
+MODE NEWLISTSTRING = STRUCT(
+    LINKSTRING sentinel
+  );
+MODE LISTSTRING = REF NEWLISTSTRING;
+
+OP LWB = (LISTSTRING self)REF LINKSTRING: up OF (UPB self);
+OP UPB = (LISTSTRING self)REF LINKSTRING: sentinel OF self;
+
+OP DOWN = (INT steps, LISTSTRING self)LINKSTRING: steps DOWN UPB self;
+OP UP   = (INT steps, LISTSTRING self)LINKSTRING: steps UP   UPB self;
+
+OP ISEMPTY = (LISTSTRING self)BOOL: UPB self IS LINKSTRING(NIL);
+
+PROC repr list string## = (LISTSTRING self)STRING: (
+    IF UPB self IS LINKSTRING(NIL) THEN
+        "[]"
+    ELSE
+        STRING out := "[", sep := "";
+        LINKSTRING lwb := LWB self;
+        LINKSTRING this := lwb;
+        # WHILE this ISNT NIL DO #
+        TO max list DO
+            out +:= sep + REPR this;
+            this := up OF this;
+            sep := ", ";
+            IF LINKSTRING(this) IS lwb THEN done FI
+        OD;
+        done: out+"]"
+    FI
+);
+OP (LISTSTRING #self#)STRING REPR = repr list string##;
+
+PROC long repr list string## = (LISTSTRING self)STRING: (
+    IF UPB self IS LINKSTRING(NIL) THEN
+        repr nil
+    ELSE
+        STRING out := "[", sep := "";
+        LINKSTRING lwb := LWB self;
+        LINKSTRING this := lwb;
+        # WHILE this ISNT NIL DO #
+        TO max list DO
+            out +:= sep + LONGREPR this;
+            this := up OF this;
+            sep := ", ";
+            IF LINKSTRING(this) IS lwb THEN done FI
+        OD;
+        done: out+"]"
+    FI
+);
+OP (LISTSTRING #self#)STRING LONGREPR = long repr list string##;
+
+OP RPER = (LISTSTRING self)STRING: (
+    IF UPB self IS LINKSTRING(NIL) THEN
+        repr nil
+    ELSE
+        STRING out := "[", sep := "";
+        LINKSTRING upb := UPB self;
+        LINKSTRING this := upb;
+        # WHILE this ISNT NIL DO #
+        TO max list DO
+            out +:= sep + REPR this;
+            this := down OF this;
+            sep := ", ";
+            IF LINKSTRING(this) IS upb THEN done FI
+        OD;
+        done: out+"]"
+    FI
+);
+
+OP +:= = (LISTSTRING self, LINKSTRING append)LISTSTRING: (
+    append +=: self;
+    UPB self := LWB self;
+    self
+);
+
+OP TRUNC = (LISTSTRING self)LINKSTRING: (
+    LINKSTRING out := NIL;
+    IF UPB self IS LWB self THEN # only one LINK left,set to NIL #
+        out := UPB self;
+        UPB self := NIL
+    ELSE
+        UPB self := down OF (UPB self);
+        out := DEL LWB self
+    FI;
+    out
+);
+
+OP -:= = (LISTSTRING self, LINKSTRING extract)LINKSTRING: (
+  # extract := TRUNC self; #
+    IF UPB self IS extract THEN
+        extract := TRUNC self
+    ELSE
+        LINKSTRING up of extract = up OF extract;
+        up OF extract =:= up OF down OF extract;
+        down OF extract =:= down OF up of extract
+    FI;
+    extract
+);
+
+OP +=: = (LINKSTRING push, LISTSTRING self)LISTSTRING: (
+    IF UPB self IS LINKSTRING(NIL) THEN
+        UPB self := push
+    ELSE
+        UPB self +:= push
+    FI;
+    self
+);
+
+OP -=: = (LISTSTRING self)LINKSTRING: (
+    DEL LWB self
+);
+
+# deprecate?: ambigious ...  #
+OP -=: = (LINKSTRING pop, LISTSTRING self)LINKSTRING: (
+    pop := -=: self
+);
+
+# LISTSTRING+VALUESTRING definitions - involves using HEAD #
+OP +:= = (LISTSTRING self, VALUESTRING append)LISTSTRING: (
+    append +=: self;
+    UPB self := LWB self;
+    self
+);
+
+OP TRUNCVALUE # -:= # = (LISTSTRING self)VALUESTRING: (
+    value OF ( TRUNC self )
+);
+
+OP -:= = (LISTSTRING self, REF VALUESTRING trunc)LISTSTRING: (
+    trunc := value OF (TRUNC self);
+    self
+);
+
+OP +=: = (VALUESTRING push, LISTSTRING self)LISTSTRING:
+    ( HEAP NEWLINKSTRING INITAB push ) +=: self;
+
+OP POPVALUE #-=:# = (LISTSTRING self)VALUESTRING: (
+    value OF (-=: self)
+);
+
+OP -=: = (REF VALUESTRING pop, REF LISTSTRING self)LISTSTRING: (
+    pop := value OF ( -=: self );
+    self
+);
+
+OP INITAB = (LISTSTRING self, []VALUESTRING array)LISTSTRING: (
+    INIT self;
+    FOR enum FROM LWB array TO UPB array DO self+:=array[enum] OD;
+    self
+);
+
+# LISTSTRING+SLICESTRING definitions #
+OP +:= = (LISTSTRING self, SLICESTRING append)LISTSTRING: (
+    IF UPB self ISNT LINKSTRING(NIL) THEN
+        UPB self +:= append
+    FI;
+    UPB self := upb OF append;
+    self
+);
+
+OP +=: = (SLICESTRING push, LISTSTRING self)LISTSTRING: (
+    push +=: LWB self;
+    self
+);
+
+CO ToDo! I dont need this yet, so wont think about it.
+OP =:= = (SLICESTRING self, swap)LISTSTRING: (
+    ###                <=LWB=====SELF=====UPB>
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ Down|   |<===|   |<===|   |<===|   |<===|   |<===|   |<===|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ SELF! K        L        q        r        s        P        Q
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+   Up|   |===>|   |===>|   |===>|   |===>|   |===>|   |===>|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                       <=LWB=====swap====UPB=>
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ Down|   |<===|   |<===|   |<===|   |<===|   |<===|   |<===|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ swap! o        p        M        N        O        t        u
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+   Up|   |===>|   |===>|   |===>|   |===>|   |===>|   |===>|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+###
+);
+END CO
+
+# LISTSTRING+LISTSTRING definitions #
+OP +:= = (LISTSTRING self, LISTSTRING append)LISTSTRING: (
+    self +:= SLICESTRING(LWB append, UPB append);
+    UPB self := UPB append;
+    self
+);
+
+OP +=: = (LISTSTRING push, LISTSTRING self)LISTSTRING: (
+    SLICESTRING(LWB push, UPB push) +=: self;
+    self
+);
+
+CO
+    OP -:= = (LISTSTRING self, LISTSTRING trunc)LISTSTRING: ~;
+    OP -=: = (LISTSTRING pop, LISTSTRING self)LISTSTRING: ~;
+END CO
+
+MODE UNIONSTRING = UNION(VALUESTRING, LINKSTRING);
+
+# PRIO CMP = 4; #
+
+OP CMP = (UNIONSTRING in left, in right)INT: (
+    VALUESTRING left = CASE in left IN
+        (LINKSTRING link): value OF link,
+        (VALUESTRING value): value
+      ESAC;
+    VALUESTRING right = CASE in right IN
+        (LINKSTRING link): value OF link,
+        (VALUESTRING value): value
+      ESAC;
+
+    IF left < right THEN -1 ELIF right > left THEN 1 ELSE 0 FI
+
+);
+
+OP <  = (LINKSTRING left, right)BOOL: (left CMP right) <  0;
+OP <= = (LINKSTRING left, right)BOOL: (left CMP right) <= 0;
+OP  = = (LINKSTRING left, right)BOOL: (left CMP right)  = 0;
+OP /= = (LINKSTRING left, right)BOOL: (left CMP right) /= 0;
+OP >= = (LINKSTRING left, right)BOOL: (left CMP right) >= 0;
+OP >  = (LINKSTRING left, right)BOOL: (left CMP right) >  0;
+OP LT = (LINKSTRING left, right)BOOL: (left CMP right) LT 0;
+OP LE = (LINKSTRING left, right)BOOL: (left CMP right) LE 0;
+OP EQ = (LINKSTRING left, right)BOOL: (left CMP right) EQ 0;
+OP NE = (LINKSTRING left, right)BOOL: (left CMP right) NE 0;
+OP GE = (LINKSTRING left, right)BOOL: (left CMP right) GE 0;
+OP GT = (LINKSTRING left, right)BOOL: (left CMP right) GT 0;
+
+OP CMP = (LISTSTRING left, right)INT: (
+    IF sentinel OF left IS LINKSTRING(NIL) THEN
+        IF sentinel OF right IS LINKSTRING(NIL) THEN 0 ELSE -1 FI
+    ELIF   sentinel OF right IS LINKSTRING(NIL) THEN 1
+    ELSE
+        LINKSTRING lwb left = LWB left;
+        LINKSTRING this left := lwb left;
+        LINKSTRING lwb right = LWB right;
+        LINKSTRING this right := lwb right;
+        INT out := 0;
+        #WHILE this left ISNT NIL OR this right ISNT NIL # DO
+            this left := up OF this left;
+            this right := up OF this right;
+            IF LINKSTRING(this left) IS lwb left THEN
+               out := IF LINKSTRING(this right) IS lwb right THEN 0 ELSE -1 FI; done
+            ELIF LINKSTRING(this right) IS lwb right THEN out := 1; done
+            ELIF
+                INT cmp = value OF this left CMP value OF this right;
+              # IF # cmp NE 0
+            THEN out := cmp; done
+            ELSE SKIP FI
+             OD;
+        done: out
+    FI
+);
+
+OP <  = (LISTSTRING left, right)BOOL: (left CMP right) <  0;
+OP <= = (LISTSTRING left, right)BOOL: (left CMP right) <= 0;
+OP  = = (LISTSTRING left, right)BOOL: (left CMP right)  = 0;
+OP /= = (LISTSTRING left, right)BOOL: (left CMP right) /= 0;
+OP >= = (LISTSTRING left, right)BOOL: (left CMP right) >= 0;
+OP >  = (LISTSTRING left, right)BOOL: (left CMP right) >  0;
+OP LT = (LISTSTRING left, right)BOOL: (left CMP right) LT 0;
+OP LE = (LISTSTRING left, right)BOOL: (left CMP right) LE 0;
+OP EQ = (LISTSTRING left, right)BOOL: (left CMP right) EQ 0;
+OP NE = (LISTSTRING left, right)BOOL: (left CMP right) NE 0;
+OP GE = (LISTSTRING left, right)BOOL: (left CMP right) GE 0;
+OP GT = (LISTSTRING left, right)BOOL: (left CMP right) GT 0;
+
+MODE YIELDLINKSTRING = PROC(LINKSTRING)VOID;
+MODE GENLINKSTRING = PROC(YIELDLINKSTRING)VOID;
+# PRIO GEN = 1; #
+OP GEN = (LISTSTRING self, YIELDLINKSTRING yield)VOID:
+    IF UPB self ISNT LINKSTRING(NIL) THEN
+        LINKSTRING lwb := LWB self;
+        LINKSTRING this := lwb;
+      # WHILE this ISNT LINKSTRING(NIL) # DO
+            yield(this);
+            this := up OF this;
+            IF LINKSTRING(this) IS lwb THEN done FI
+        OD;
+    done: SKIP
+    FI;
+
+SKIP

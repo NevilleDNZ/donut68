@@ -1,0 +1,469 @@
+# -*- coding: utf-8 -*- #
+
+# PRIO INITAB = 1, -=: = 1, =: = 1, =:= = 1; #
+
+MODE NEWLINKITEM = STRUCT(
+    LINKITEM down, up,
+    INT link ref,
+    VALUEITEM value
+  );
+MODE LINKITEM = REF NEWLINKITEM;
+
+# generic LISTITEM+LINKITEM definitions #
+OP DOWN = (LINKITEM self)LINKITEM: down OF self;
+OP UP   = (LINKITEM self)LINKITEM: up   OF self;
+
+OP DOWN = (INT steps, LINKITEM self)LINKITEM: (
+    LINKITEM out := self;
+    TO steps DO out := down OF out OD;
+    out
+);
+
+OP UP = (INT steps, LINKITEM self)LINKITEM: (
+    LINKITEM out := self;
+    TO steps DO out := up OF out OD;
+    out
+);
+
+OP =: = (LINKITEM left, REF LINKITEM right)LINKITEM: (
+    LINKITEM out := right; right := left;
+    out
+);
+
+CO
+OP =:= = (REF LINKITEM left, right)LINKITEM: (
+    right =: left =: right
+);
+END CO
+OP =:= = (REF LINKITEM left, right)LINKITEM: (
+    LINKITEM swap := left; left := right; right := swap
+);
+
+OP INIT = (LISTITEM self)LISTITEM: (
+    sentinel OF self := NIL;
+    self
+  );
+
+OP INITAB = (LINKITEM self, VALUEITEM value)LINKITEM: (
+    link ref OF self := link ref count +:= 1;
+    up OF self := down OF self := self;
+    value OF self := value;
+    self
+  );
+
+PROC repr link item## = (LINKITEM self)STRING:
+    IF self IS LINKITEM(NIL) THEN
+        repr nil
+    ELSE
+        REPR value OF self
+    FI;
+OP (LINKITEM #self#)STRING REPR = repr link item##;
+
+PROC long repr link item## = (LINKITEM self)STRING:
+    IF self IS LINKITEM(NIL) THEN
+        repr nil
+    ELSE
+        "<"+whole(link ref OF down OF self,-0)+
+        "-"+whole(link ref OF self,-0)+"-"+
+        whole(link ref OF up OF self,-0)+">"+
+        REPR value OF self
+    FI;
+OP (LINKITEM #self#)STRING LONGREPR = long repr link item##;
+
+# LINKITEM+LINKITEM definitions #
+OP DEL = (LINKITEM self)LINKITEM: (
+    LINKITEM up of self = up OF self;
+    up   OF self =:= up OF down OF self;
+    down OF self =:= down OF up of self;
+    self
+);
+
+OP +:= = (LINKITEM self, append)LINKITEM: (
+    down OF up OF self =:= down OF append;
+            up OF self =:= up   OF append;
+    self
+);
+
+OP +=: = (LINKITEM push, self)LINKITEM: (
+      up OF self =:=   up OF push;
+    down OF self =:= down OF push;
+    self
+);
+
+# LINKITEM+SLICEITEM definitions #
+MODE SLICEITEM = STRUCT(LINKITEM lwb, upb);
+#MODE LSLICEITEM = STRUCT(LINKITEM lwb, upb, LISTITEM);#
+
+OP LWB = (SLICEITEM slice)LINKITEM: lwb OF slice;
+OP UPB = (SLICEITEM slice)LINKITEM: upb OF slice;
+
+PROC repr slice item## = (SLICEITEM self)STRING: "["+REPR lwb OF self+":"+REPR upb OF self+"]";
+OP (SLICEITEM #self#)STRING REPR = repr slice item##;
+PROC long repr slice item## = (SLICEITEM self)STRING: "["+LONGREPR lwb OF self+":"+LONGREPR upb OF self+"]";
+OP (SLICEITEM #self#)STRING LONGREPR = long repr slice item##;
+
+OP DEL = (SLICEITEM slice)SLICEITEM: (
+    LINKITEM up of upb of slice = up   OF upb OF slice;
+    up   OF upb OF slice =:= up   OF down OF lwb OF slice;
+    down OF lwb OF slice =:= down OF up   of upb of slice;
+    slice
+);
+
+OP ROTUP = ([]REF LINKITEM links)LINKITEM: (
+    LINKITEM upb link = links[UPB links];
+    FOR enum FROM UPB links DOWNTO LWB links +1 DO links[enum] := links[enum-1] OD;
+    links[LWB links] := upb link
+);
+
+OP ROTDOWN = ([]REF LINKITEM links)LINKITEM: (
+    LINKITEM lwb link = links[LWB links];
+    FOR enum FROM LWB links TO UPB links -1 DO links[enum] := links[enum+1] OD;
+    links[UPB links] := lwb link
+);
+
+OP +:= = (LINKITEM self #self#, SLICEITEM append)LINKITEM: (
+    IF lwb OF append IS upb OF append THEN
+        # slice is actually simply a SINGLE link #
+        self +:= LWB append
+    ELIF lwb OF append IS up OF upb OF append THEN
+        # slice is actually only a LIST #
+###            [L]     <=LWB s==slice==UPB s>    [UP L]
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ Down|   |<===|   |<=s=| L.|<===|   |<===|   |<=L=| s?|<===|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+       K        L?       q.       r        s.       M?       N
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+   Up|   |===>| q?|=M=>|   |===>|   |===>| M.|=q=>|   |===>|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+down: M?F => s; q.s => L
+up:   L.M => q; s.q => M
+###
+        down OF up OF self =:= down OF lwb OF append;
+        up OF self =:= up OF upb OF append
+    ELSE
+###            [L]     <=LWB s==slice==UPB s>    [UP L]
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ Down|   |<===|   |<=p=| L.|<===|   |<===|   |<=L=| s?|<===|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+       K        L?       q.       r        s.       M?       N
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+   Up|   |===>| q?|=M=>|   |===>|   |===>| M.|=t=>|   |===>|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+down: M?L => s;       q.p => L;         t?s => p;
+      DOWN UP self =: DOWN LWB slice =: DOWN UP UPB slice =: DOWN UP self;
+up:   L?M => q;  s.t => M;       p?q => t;
+      UP self =: UP UPB slice =: UP DOWN LWB slice =: UP self
+      UP self =: UP UPB slice =: UP DOWN LWB slice =: UP self
+     +---+    +---+                               +---+    +---+
+ Down|   |<===|   |<============================s=| p?|<===|   |
+     +---+    +---+                               +---+    +---+
+       o       p?                                   t?       u
+     +---+    +---+                               +---+    +---+
+   Up|   |===>| t?|=q============================>|   |===>|   |
+     +---+    +---+                               +---+    +---+
+###
+        LINKITEM up of self := up OF self, down of lwb of append := down OF lwb OF append;
+        ROTUP([]REF LINKITEM(down OF up of self, down OF lwb OF append, down OF up OF upb OF append));
+        ROTUP([]REF LINKITEM(up OF self,  up OF upb OF append,    up OF down of lwb of append))
+    FI;
+    self
+);
+
+OP +=: = (SLICEITEM push, LINKITEM self)LINKITEM: (
+    down OF self +:= push;
+    self
+);
+
+# LISTITEM+LINKITEM definitions #
+
+MODE NEWLISTITEM = STRUCT(
+    LINKITEM sentinel
+  );
+MODE LISTITEM = REF NEWLISTITEM;
+
+OP LWB = (LISTITEM self)REF LINKITEM: up OF (UPB self);
+OP UPB = (LISTITEM self)REF LINKITEM: sentinel OF self;
+
+OP DOWN = (INT steps, LISTITEM self)LINKITEM: steps DOWN UPB self;
+OP UP   = (INT steps, LISTITEM self)LINKITEM: steps UP   UPB self;
+
+OP ISEMPTY = (LISTITEM self)BOOL: UPB self IS LINKITEM(NIL);
+
+PROC repr list item## = (LISTITEM self)STRING: (
+    IF UPB self IS LINKITEM(NIL) THEN
+        "[]"
+    ELSE
+        STRING out := "[", sep := "";
+        LINKITEM lwb := LWB self;
+        LINKITEM this := lwb;
+        # WHILE this ISNT NIL DO #
+        TO max list DO
+            out +:= sep + REPR this;
+            this := up OF this;
+            sep := ", ";
+            IF LINKITEM(this) IS lwb THEN done FI
+        OD;
+        done: out+"]"
+    FI
+);
+OP (LISTITEM #self#)STRING REPR = repr list item##;
+
+PROC long repr list item## = (LISTITEM self)STRING: (
+    IF UPB self IS LINKITEM(NIL) THEN
+        repr nil
+    ELSE
+        STRING out := "[", sep := "";
+        LINKITEM lwb := LWB self;
+        LINKITEM this := lwb;
+        # WHILE this ISNT NIL DO #
+        TO max list DO
+            out +:= sep + LONGREPR this;
+            this := up OF this;
+            sep := ", ";
+            IF LINKITEM(this) IS lwb THEN done FI
+        OD;
+        done: out+"]"
+    FI
+);
+OP (LISTITEM #self#)STRING LONGREPR = long repr list item##;
+
+OP RPER = (LISTITEM self)STRING: (
+    IF UPB self IS LINKITEM(NIL) THEN
+        repr nil
+    ELSE
+        STRING out := "[", sep := "";
+        LINKITEM upb := UPB self;
+        LINKITEM this := upb;
+        # WHILE this ISNT NIL DO #
+        TO max list DO
+            out +:= sep + REPR this;
+            this := down OF this;
+            sep := ", ";
+            IF LINKITEM(this) IS upb THEN done FI
+        OD;
+        done: out+"]"
+    FI
+);
+
+OP +:= = (LISTITEM self, LINKITEM append)LISTITEM: (
+    append +=: self;
+    UPB self := LWB self;
+    self
+);
+
+OP TRUNC = (LISTITEM self)LINKITEM: (
+    LINKITEM out := NIL;
+    IF UPB self IS LWB self THEN # only one LINK left,set to NIL #
+        out := UPB self;
+        UPB self := NIL
+    ELSE
+        UPB self := down OF (UPB self);
+        out := DEL LWB self
+    FI;
+    out
+);
+
+OP -:= = (LISTITEM self, LINKITEM extract)LINKITEM: (
+  # extract := TRUNC self; #
+    IF UPB self IS extract THEN
+        extract := TRUNC self
+    ELSE
+        LINKITEM up of extract = up OF extract;
+        up OF extract =:= up OF down OF extract;
+        down OF extract =:= down OF up of extract
+    FI;
+    extract
+);
+
+OP +=: = (LINKITEM push, LISTITEM self)LISTITEM: (
+    IF UPB self IS LINKITEM(NIL) THEN
+        UPB self := push
+    ELSE
+        UPB self +:= push
+    FI;
+    self
+);
+
+OP -=: = (LISTITEM self)LINKITEM: (
+    DEL LWB self
+);
+
+# deprecate?: ambigious ...  #
+OP -=: = (LINKITEM pop, LISTITEM self)LINKITEM: (
+    pop := -=: self
+);
+
+# LISTITEM+VALUEITEM definitions - involves using HEAD #
+OP +:= = (LISTITEM self, VALUEITEM append)LISTITEM: (
+    append +=: self;
+    UPB self := LWB self;
+    self
+);
+
+OP TRUNCVALUE # -:= # = (LISTITEM self)VALUEITEM: (
+    value OF ( TRUNC self )
+);
+
+OP -:= = (LISTITEM self, REF VALUEITEM trunc)LISTITEM: (
+    trunc := value OF (TRUNC self);
+    self
+);
+
+OP +=: = (VALUEITEM push, LISTITEM self)LISTITEM:
+    ( HEAP NEWLINKITEM INITAB push ) +=: self;
+
+OP POPVALUE #-=:# = (LISTITEM self)VALUEITEM: (
+    value OF (-=: self)
+);
+
+OP -=: = (REF VALUEITEM pop, REF LISTITEM self)LISTITEM: (
+    pop := value OF ( -=: self );
+    self
+);
+
+OP INITAB = (LISTITEM self, []VALUEITEM array)LISTITEM: (
+    INIT self;
+    FOR enum FROM LWB array TO UPB array DO self+:=array[enum] OD;
+    self
+);
+
+# LISTITEM+SLICEITEM definitions #
+OP +:= = (LISTITEM self, SLICEITEM append)LISTITEM: (
+    IF UPB self ISNT LINKITEM(NIL) THEN
+        UPB self +:= append
+    FI;
+    UPB self := upb OF append;
+    self
+);
+
+OP +=: = (SLICEITEM push, LISTITEM self)LISTITEM: (
+    push +=: LWB self;
+    self
+);
+
+CO ToDo! I dont need this yet, so wont think about it.
+OP =:= = (SLICEITEM self, swap)LISTITEM: (
+    ###                <=LWB=====SELF=====UPB>
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ Down|   |<===|   |<===|   |<===|   |<===|   |<===|   |<===|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ SELF! K        L        q        r        s        P        Q
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+   Up|   |===>|   |===>|   |===>|   |===>|   |===>|   |===>|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                       <=LWB=====swap====UPB=>
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ Down|   |<===|   |<===|   |<===|   |<===|   |<===|   |<===|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+ swap! o        p        M        N        O        t        u
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+   Up|   |===>|   |===>|   |===>|   |===>|   |===>|   |===>|   |
+     +---+    +---+    +---+    +---+    +---+    +---+    +---+
+###
+);
+END CO
+
+# LISTITEM+LISTITEM definitions #
+OP +:= = (LISTITEM self, LISTITEM append)LISTITEM: (
+    self +:= SLICEITEM(LWB append, UPB append);
+    UPB self := UPB append;
+    self
+);
+
+OP +=: = (LISTITEM push, LISTITEM self)LISTITEM: (
+    SLICEITEM(LWB push, UPB push) +=: self;
+    self
+);
+
+CO
+    OP -:= = (LISTITEM self, LISTITEM trunc)LISTITEM: ~;
+    OP -=: = (LISTITEM pop, LISTITEM self)LISTITEM: ~;
+END CO
+
+MODE UNIONITEM = UNION(VALUEITEM, LINKITEM);
+
+# PRIO CMP = 4; #
+
+OP CMP = (UNIONITEM in left, in right)INT: (
+    VALUEITEM left = CASE in left IN
+        (LINKITEM link): value OF link,
+        (VALUEITEM value): value
+      ESAC;
+    VALUEITEM right = CASE in right IN
+        (LINKITEM link): value OF link,
+        (VALUEITEM value): value
+      ESAC;
+
+    IF left < right THEN -1 ELIF right > left THEN 1 ELSE 0 FI
+
+);
+
+OP <  = (LINKITEM left, right)BOOL: (left CMP right) <  0;
+OP <= = (LINKITEM left, right)BOOL: (left CMP right) <= 0;
+OP  = = (LINKITEM left, right)BOOL: (left CMP right)  = 0;
+OP /= = (LINKITEM left, right)BOOL: (left CMP right) /= 0;
+OP >= = (LINKITEM left, right)BOOL: (left CMP right) >= 0;
+OP >  = (LINKITEM left, right)BOOL: (left CMP right) >  0;
+OP LT = (LINKITEM left, right)BOOL: (left CMP right) LT 0;
+OP LE = (LINKITEM left, right)BOOL: (left CMP right) LE 0;
+OP EQ = (LINKITEM left, right)BOOL: (left CMP right) EQ 0;
+OP NE = (LINKITEM left, right)BOOL: (left CMP right) NE 0;
+OP GE = (LINKITEM left, right)BOOL: (left CMP right) GE 0;
+OP GT = (LINKITEM left, right)BOOL: (left CMP right) GT 0;
+
+OP CMP = (LISTITEM left, right)INT: (
+    IF sentinel OF left IS LINKITEM(NIL) THEN
+        IF sentinel OF right IS LINKITEM(NIL) THEN 0 ELSE -1 FI
+    ELIF   sentinel OF right IS LINKITEM(NIL) THEN 1
+    ELSE
+        LINKITEM lwb left = LWB left;
+        LINKITEM this left := lwb left;
+        LINKITEM lwb right = LWB right;
+        LINKITEM this right := lwb right;
+        INT out := 0;
+        #WHILE this left ISNT NIL OR this right ISNT NIL # DO
+            this left := up OF this left;
+            this right := up OF this right;
+            IF LINKITEM(this left) IS lwb left THEN
+               out := IF LINKITEM(this right) IS lwb right THEN 0 ELSE -1 FI; done
+            ELIF LINKITEM(this right) IS lwb right THEN out := 1; done
+            ELIF
+                INT cmp = value OF this left CMP value OF this right;
+              # IF # cmp NE 0
+            THEN out := cmp; done
+            ELSE SKIP FI
+             OD;
+        done: out
+    FI
+);
+
+OP <  = (LISTITEM left, right)BOOL: (left CMP right) <  0;
+OP <= = (LISTITEM left, right)BOOL: (left CMP right) <= 0;
+OP  = = (LISTITEM left, right)BOOL: (left CMP right)  = 0;
+OP /= = (LISTITEM left, right)BOOL: (left CMP right) /= 0;
+OP >= = (LISTITEM left, right)BOOL: (left CMP right) >= 0;
+OP >  = (LISTITEM left, right)BOOL: (left CMP right) >  0;
+OP LT = (LISTITEM left, right)BOOL: (left CMP right) LT 0;
+OP LE = (LISTITEM left, right)BOOL: (left CMP right) LE 0;
+OP EQ = (LISTITEM left, right)BOOL: (left CMP right) EQ 0;
+OP NE = (LISTITEM left, right)BOOL: (left CMP right) NE 0;
+OP GE = (LISTITEM left, right)BOOL: (left CMP right) GE 0;
+OP GT = (LISTITEM left, right)BOOL: (left CMP right) GT 0;
+
+MODE YIELDLINKITEM = PROC(LINKITEM)VOID;
+MODE GENLINKITEM = PROC(YIELDLINKITEM)VOID;
+# PRIO GEN = 1; #
+OP GEN = (LISTITEM self, YIELDLINKITEM yield)VOID:
+    IF UPB self ISNT LINKITEM(NIL) THEN
+        LINKITEM lwb := LWB self;
+        LINKITEM this := lwb;
+      # WHILE this ISNT LINKITEM(NIL) # DO
+            yield(this);
+            this := up OF this;
+            IF LINKITEM(this) IS lwb THEN done FI
+        OD;
+    done: SKIP
+    FI;
+
+SKIP
