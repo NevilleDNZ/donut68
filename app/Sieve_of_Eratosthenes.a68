@@ -1,0 +1,109 @@
+#!/usr/bin/a68g --script #
+# -*- coding: utf-8 -*- #
+
+# from math import * #
+
+# Sieve of Eratosthenes #
+# Code by David Eppstein, UC Irvine, 28 Feb 2002 #
+# http://code.activestate.com/recipes/117119/ #
+
+PR read "prelude/list_ops_shared.a68" PR;
+
+MODE VALUEVAL = INT;
+OP REPR = (VALUEVAL self)STRING: whole(self,-0);
+PR read "prelude/list_val_ops.a68" PR;
+
+MODE VALUEITEM = STRUCT(INT key, LISTVAL value);
+OP REPR = (VALUEITEM self)STRING: REPR key OF self+": "+REPR value OF self;
+PR READ "sub_prelude/list_item_ops.a68" PR;
+
+OP < = (VALUEITEM l,r)BOOL: key OF l < key OF r;
+OP > = (VALUEITEM l,r)BOOL: key OF l > key OF r;
+
+MODE YIELDINT = PROC(INT)VOID;
+MODE GENINT = PROC(YIELDINT)VOID;
+
+MODE OPTLINKITEM = UNION(LINKITEM,VOID);
+
+OP ELEM = (INT needle, LISTITEM haystack)OPTLINKITEM: (
+    OPTLINKITEM out := EMPTY;
+  # FOR LINKITEM item IN # haystack GEN (
+       (LINKITEM link)VOID:
+           IF needle = key OF value OF link THEN
+               out := link;
+               done item
+           FI
+  # OD #);
+    done item: out
+);
+
+PROC gen primes = (YIELDINT yield)VOID: BEGIN
+    ### Generate an infinite sequence of prime numbers.
+    ###
+    # Maps composites to primes witnessing their compositeness. #
+    # This is memory efficient, as the sieve is not "run forward" #
+    # indefinitely, but only as long as required by the current #
+    # number being tested. #
+    NEWLISTITEM dict; INIT dict;
+    yield(2);
+
+    # The running integer that's checked for primeness #
+    INT q := 3;
+
+    DO
+      # IF q NOT IN dict THEN #
+        CASE q ELEM dict IN
+        (VOID):(
+            # q is a new prime. #
+            # Yield it and mark its first multiple that isn't #
+            # already marked in previous iterations #
+            yield(q);
+          # dict[q * q] = [q] #
+            dict +:= VALUEITEM(q * q, (INIT HEAP NEWLISTVAL) +:= q)
+        ),
+      # ELSE #
+        (LINKITEM q of dict): (
+            # q is composite. dict[q] is the list of primes that #
+            # divide it. Since we've reached q, we no longer #
+            # need it in the map, but we'll mark the next  #
+            # multiples of its witnesses to prepare for larger #
+            # numbers #
+          # FOR LINKVAL p IN # value OF value OF q of dict GEN # DO # (
+               (LINKVAL p)VOID: (
+                  # dict.setdefault(2*p + q, []).append(p) #
+                    INT tppq = 2*value OF p + q;
+                    CASE tppq ELEM dict IN
+                        (VOID): # create new item #
+                            # dict +:= # VALUEITEM(tppq, INIT HEAP NEWLISTVAL +:= value OF p) +=: dict,
+                        (LINKITEM tppq of dict): # existing item #
+                            value OF value OF tppq of dict +:= value OF p
+                    OUT ASSERT(FALSE)
+                    ESAC
+                )
+            ) # OD #;
+          # DEL dict[q] #
+            CASE q ELEM dict IN
+                (VOID): ASSERT(FALSE),
+                (LINKITEM q of dict): dict -:= q of dict
+                OUT ASSERT(FALSE)
+            ESAC;
+        )
+        OUT ASSERT(FALSE)
+        ESAC 
+     # FI #;
+        q +:= 2
+    OD
+END;
+
+INT nprime := 1;
+FORMAT sep := $$;
+# FOR INT p IN # gen primes( # DO #
+     (INT p)VOID: (
+        printf((sep, $g(-0)$,p));
+        IF nprime = 1000 THEN done p FI;
+        nprime +:= 1;
+        sep := $x$
+     )
+) # OD #;
+
+done p: print(new line)

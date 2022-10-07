@@ -1,0 +1,14 @@
+PRIO INITAB = 1, -=: = 1, =: = 1, =:= = 1;
+PRIO CMP = 4;
+PRIO GEN = 1;
+
+PROC skip = VOID: ( break );
+
+INT link ref count := 0;
+STRING repr nil = "NIL";
+
+BOOL with trace = NOT TRUE;
+
+INT max list = max int;
+
+SKIP

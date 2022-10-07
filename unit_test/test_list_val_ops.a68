@@ -6,6 +6,7 @@ MODE WORD = STRING;
 MODE VALUEVAL = WORD;
 OP REPR = (WORD self)STRING: self;
 
+PR read "prelude/list_ops_shared.a68" PR;
 PR read "prelude/list_val_ops.a68" PR;
 
 # list_ops PROVIDES: NEWLISTVAL, NEWLINKVAL #
@@ -147,8 +148,9 @@ BEGIN
         IF sentence upb NE pangram THEN fail test FI;
 
     test desc := unit test("OP -:= = (LISTVAL self, LINKVAL trunc)LISTVAL: ~;");
-        sentence upb +:= ( HEAP NEWLINKVAL INITAB "upb" );
-        NEWLINKWORD upb; sentence upb -:= upb;
+        HEAP NEWLINKWORD upb; upb INITAB "upb";
+        sentence upb +:= upb;
+        sentence upb -:= upb;
         print(("upb",": ", REPR upb, REPR sentence upb, new line));
         IF sentence upb NE pangram THEN fail test FI;
 
@@ -165,7 +167,7 @@ BEGIN
 
     test desc := unit test("OP -=: = (LINKVAL pop, LISTVAL self)LINKVAL: ~;");
         lwb +=: sentence lwb;
-        lwb -=: sentence lwb;
+        lwb := -=: sentence lwb;
         print(("lwb",": ", REPR lwb, REPR sentence lwb, new line));
         IF sentence lwb NE pangram THEN fail test FI
 END;

@@ -153,6 +153,7 @@ PROC page splash = VOID: (
 MODE VALUEVAL = NEWSNAKESEGMENT;
 OP < = (NEWSNAKESEGMENT l,r)BOOL: TRUE;
 OP > = (NEWSNAKESEGMENT l,r)BOOL: TRUE;
+PR read "prelude/list_ops_shared.a68" PR;
 PR read "prelude/list_val_ops.a68" PR;
 
 ##################################

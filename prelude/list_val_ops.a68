@@ -1,11 +1,6 @@
 # -*- coding: utf-8 -*- #
 
-INT link ref count := 0;
-STRING repr nil = "NIL";
-
-PROC skip = VOID: ( break );
-
-PRIO INITAB = 1, -=: = 1, =: = 1, =:= = 1;
+# PRIO INITAB = 1, -=: = 1, =: = 1, =:= = 1; #
 
 MODE NEWLINKVAL = STRUCT(
     LINKVAL down, up,
@@ -13,7 +8,6 @@ MODE NEWLINKVAL = STRUCT(
     VALUEVAL value
   );
 MODE LINKVAL = REF NEWLINKVAL;
-LINKVAL linkval nil = LINKVAL(NIL);
 
 # generic LISTVAL+LINKVAL definitions #
 OP DOWN = (LINKVAL self)LINKVAL: down OF self;
@@ -57,14 +51,15 @@ OP INITAB = (LINKVAL self, VALUEVAL value)LINKVAL: (
     self
   );
 
-OP REPR = (LINKVAL self)STRING:
+PROC repr link val## = (LINKVAL self)STRING:
     IF self IS LINKVAL(NIL) THEN
         repr nil
     ELSE
         REPR value OF self
     FI;
+OP (LINKVAL #self#)STRING REPR = repr link val##;
 
-OP LONGREPR = (LINKVAL self)STRING:
+PROC long repr link val## = (LINKVAL self)STRING:
     IF self IS LINKVAL(NIL) THEN
         repr nil
     ELSE
@@ -73,6 +68,7 @@ OP LONGREPR = (LINKVAL self)STRING:
         whole(link ref OF up OF self,-0)+">"+
         REPR value OF self
     FI;
+OP (LINKVAL #self#)STRING LONGREPR = long repr link val##;
 
 # LINKVAL+LINKVAL definitions #
 OP DEL = (LINKVAL self)LINKVAL: (
@@ -101,8 +97,10 @@ MODE SLICEVAL = STRUCT(LINKVAL lwb, upb);
 OP LWB = (SLICEVAL slice)LINKVAL: lwb OF slice;
 OP UPB = (SLICEVAL slice)LINKVAL: upb OF slice;
 
-OP REPR = (SLICEVAL self)STRING: "["+REPR lwb OF self+":"+REPR upb OF self+"]";
-OP LONGREPR = (SLICEVAL self)STRING: "["+LONGREPR lwb OF self+":"+LONGREPR upb OF self+"]";
+PROC repr slice val## = (SLICEVAL self)STRING: "["+REPR lwb OF self+":"+REPR upb OF self+"]";
+OP (SLICEVAL #self#)STRING REPR = repr slice val##;
+PROC long repr slice val## = (SLICEVAL self)STRING: "["+LONGREPR lwb OF self+":"+LONGREPR upb OF self+"]";
+OP (SLICEVAL #self#)STRING LONGREPR = long repr slice val##;
 
 OP DEL = (SLICEVAL slice)SLICEVAL: (
     LINKVAL up of upb of slice = up   OF upb OF slice;
@@ -182,7 +180,6 @@ MODE NEWLISTVAL = STRUCT(
     LINKVAL sentinel
   );
 MODE LISTVAL = REF NEWLISTVAL;
-LISTVAL list val nil = LISTVAL(NIL);
 
 OP LWB = (LISTVAL self)REF LINKVAL: up OF (UPB self);
 OP UPB = (LISTVAL self)REF LINKVAL: sentinel OF self;
@@ -192,14 +189,15 @@ OP UP   = (INT steps, LISTVAL self)LINKVAL: steps UP   UPB self;
 
 OP ISEMPTY = (LISTVAL self)BOOL: UPB self IS LINKVAL(NIL);
 
-OP REPR = (LISTVAL self)STRING: (
+PROC repr list val## = (LISTVAL self)STRING: (
     IF UPB self IS LINKVAL(NIL) THEN
-        repr nil
+        "[]"
     ELSE
         STRING out := "[", sep := "";
         LINKVAL lwb := LWB self;
         LINKVAL this := lwb;
-        TO 9 WHILE this ISNT NIL DO
+        # WHILE this ISNT NIL DO #
+        TO max list DO
             out +:= sep + REPR this;
             this := up OF this;
             sep := ", ";
@@ -208,15 +206,17 @@ OP REPR = (LISTVAL self)STRING: (
         done: out+"]"
     FI
 );
+OP (LISTVAL #self#)STRING REPR = repr list val##;
 
-OP LONGREPR = (LISTVAL self)STRING: (
+PROC long repr list val## = (LISTVAL self)STRING: (
     IF UPB self IS LINKVAL(NIL) THEN
         repr nil
     ELSE
         STRING out := "[", sep := "";
         LINKVAL lwb := LWB self;
         LINKVAL this := lwb;
-        TO 9 WHILE this ISNT NIL DO
+        # WHILE this ISNT NIL DO #
+        TO max list DO
             out +:= sep + LONGREPR this;
             this := up OF this;
             sep := ", ";
@@ -225,6 +225,7 @@ OP LONGREPR = (LISTVAL self)STRING: (
         done: out+"]"
     FI
 );
+OP (LISTVAL #self#)STRING LONGREPR = long repr list val##;
 
 OP RPER = (LISTVAL self)STRING: (
     IF UPB self IS LINKVAL(NIL) THEN
@@ -233,7 +234,8 @@ OP RPER = (LISTVAL self)STRING: (
         STRING out := "[", sep := "";
         LINKVAL upb := UPB self;
         LINKVAL this := upb;
-        # TO 9 # WHILE this ISNT NIL DO
+        # WHILE this ISNT NIL DO #
+        TO max list DO
             out +:= sep + REPR this;
             this := down OF this;
             sep := ", ";
@@ -261,9 +263,16 @@ OP TRUNC = (LISTVAL self)LINKVAL: (
     out
 );
 
-OP -:= = (LISTVAL self, LINKVAL trunc)LISTVAL: (
-    trunc := TRUNC self;
-    self
+OP -:= = (LISTVAL self, LINKVAL extract)LINKVAL: (
+  # extract := TRUNC self; #
+    IF UPB self IS extract THEN
+        extract := TRUNC self
+    ELSE
+        LINKVAL up of extract = up OF extract;
+        up OF extract =:= up OF down OF extract;
+        down OF extract =:= down OF up of extract
+    FI;
+    extract
 );
 
 OP +=: = (LINKVAL push, LISTVAL self)LISTVAL: (
@@ -279,6 +288,7 @@ OP -=: = (LISTVAL self)LINKVAL: (
     DEL LWB self
 );
 
+# deprecate?: ambigious ...  #
 OP -=: = (LINKVAL pop, LISTVAL self)LINKVAL: (
     pop := -=: self
 );
@@ -373,7 +383,7 @@ END CO
 
 MODE UNIONVAL = UNION(VALUEVAL, LINKVAL);
 
-PRIO CMP = 4;
+# PRIO CMP = 4; #
 
 OP CMP = (UNIONVAL in left, in right)INT: (
     VALUEVAL left = CASE in left IN
@@ -412,7 +422,7 @@ OP CMP = (LISTVAL left, right)INT: (
         LINKVAL lwb right = LWB right;
         LINKVAL this right := lwb right;
         INT out := 0;
-        TO 99  #WHILE this left ISNT NIL OR this right ISNT NIL # DO
+        #WHILE this left ISNT NIL OR this right ISNT NIL # DO
             this left := up OF this left;
             this right := up OF this right;
             IF LINKVAL(this left) IS lwb left THEN
@@ -443,12 +453,12 @@ OP GT = (LISTVAL left, right)BOOL: (left CMP right) GT 0;
 
 MODE YIELDLINKVAL = PROC(LINKVAL)VOID;
 MODE GENLINKVAL = PROC(YIELDLINKVAL)VOID;
-PRIO GEN = 1;
+# PRIO GEN = 1; #
 OP GEN = (LISTVAL self, YIELDLINKVAL yield)VOID:
     IF UPB self ISNT LINKVAL(NIL) THEN
         LINKVAL lwb := LWB self;
         LINKVAL this := lwb;
-        # WHILE this ISNT LINKVAL(NIL) # DO
+      # WHILE this ISNT LINKVAL(NIL) # DO
             yield(this);
             this := up OF this;
             IF LINKVAL(this) IS lwb THEN done FI
