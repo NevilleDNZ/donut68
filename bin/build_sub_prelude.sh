@@ -12,7 +12,8 @@ for base_sub in "$@"; do
             echo "$from older than $to - skipping build"
         else
             echo "$from newer than $to - building"
-            sed "s/$BASE\b/$SUB/g; s/\b $base##/ $sub##/g" < "$from" > "$to"
+            WARNING="### WARNING: Built by $0 from $from ... DO NOT EDIT MANUALLY ###"
+            ( echo $WARNING; sed "s/$BASE\b/$SUB/g; s/\b $base##/ $sub##/g" < "$from" ) > "$to"
         fi
     done
 done

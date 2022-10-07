@@ -86,7 +86,7 @@ PROC gen primes = (YIELDINT yield)VOID: BEGIN
                 (VOID): ASSERT(FALSE),
                 (LINKITEM q of dict): dict -:= q of dict
                 OUT ASSERT(FALSE)
-            ESAC;
+            ESAC
         )
         OUT ASSERT(FALSE)
         ESAC 
