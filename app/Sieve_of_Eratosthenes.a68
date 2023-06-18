@@ -7,15 +7,15 @@
 # Code by David Eppstein, UC Irvine, 28 Feb 2002 #
 # http://code.activestate.com/recipes/117119/ #
 
-PR read "prelude/list_ops_shared.a68" PR;
+PR read "../prelude/list_ops_shared.a68" PR;
 
 MODE VALUEVAL = INT;
 OP REPR = (VALUEVAL self)STRING: whole(self,-0);
-PR read "prelude/list_val_ops.a68" PR;
+PR read "../prelude/list_val_ops.a68" PR;
 
 MODE VALUEITEM = STRUCT(INT key, LISTVAL value);
 OP REPR = (VALUEITEM self)STRING: REPR key OF self+": "+REPR value OF self;
-PR READ "sub_prelude/list_item_ops.a68" PR;
+PR READ "../sub_prelude/list_item_ops.a68" PR;
 
 OP < = (VALUEITEM l,r)BOOL: key OF l < key OF r;
 OP > = (VALUEITEM l,r)BOOL: key OF l > key OF r;

@@ -6,8 +6,8 @@ MODE WORD = STRING;
 MODE VALUEVAL = WORD;
 OP REPR = (WORD self)STRING: self;
 
-PR read "prelude/list_ops_shared.a68" PR;
-PR read "prelude/list_val_ops.a68" PR;
+PR read "../prelude/list_ops_shared.a68" PR;
+PR read "../prelude/list_val_ops.a68" PR;
 
 # list_ops PROVIDES: NEWLISTVAL, NEWLINKVAL #
 
